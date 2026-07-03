@@ -815,6 +815,7 @@
 		"antd": "^5.15.4",
 		"axios": "^1.18.1",
 		"buffer": "^6.0.3",
+		"chart.js": "^4.5.1",
 		"chrome-finder": "^1.0.7",
 		"codemirror": "^6.0.2",
 		"codemirror-lang-latex": "^0.4.1",
