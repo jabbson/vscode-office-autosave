@@ -44,7 +44,6 @@ import {
     applyEditorSettings,
 } from "../util/globalLocalStorageSettings";
 import {getCodeFontFamilyOptions} from "../util/fontFamilyOptions";
-import { telemetry } from "../util/telemetry";
 
 const DROPDOWN_OPTIONS_MAP: Record<string, readonly { label: string; value: string }[] | (() => { label: string; value: string }[])> = {
     [FONT_FAMILY_KEY]: FONT_FAMILY_OPTIONS,
@@ -189,12 +188,8 @@ export class Settings extends MenuItem {
         });
 
         actionBtn.addEventListener(getEventName(), () => {
-            const willOpen = panelElement.style.display !== "block";
             closeFloatingMenu();
             refreshSettingsPanel(panelElement, vditor);
-            if (willOpen) {
-                telemetry(vditor, "markdown.settings.open");
-            }
         }, true);
 
         panelElement.addEventListener(getEventName(), (event: MouseEvent & { target: HTMLElement }) => {
@@ -240,6 +235,19 @@ export class Settings extends MenuItem {
                 vditor.element.style.setProperty("--editor-line-height", String(next));
                 const input = row.querySelector<HTMLInputElement>("[data-lh-value]");
                 if (input) input.value = next.toFixed(1);
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+
+            // Toggle switch
+            const toggleTrigger = event.target.closest("[data-toggle-trigger]") as HTMLElement | null;
+            if (toggleTrigger) {
+                const key = toggleTrigger.getAttribute("data-toggle-key") || "";
+                const next = !toggleTrigger.classList.contains(`${SETTINGS_PANEL_CLASS}__toggle--on`);
+                toggleTrigger.classList.toggle(`${SETTINGS_PANEL_CLASS}__toggle--on`, next);
+                toggleTrigger.setAttribute("aria-checked", String(next));
+                setGlobalLocalStorageSetting(key, next ? true : undefined);
                 event.preventDefault();
                 event.stopPropagation();
                 return;

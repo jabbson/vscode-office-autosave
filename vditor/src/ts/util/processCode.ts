@@ -1,10 +1,15 @@
 import { codeMirrorPreviewRender } from "../codeBlock/codeMirrorPreviewRender";
-import { ensureMathBlockPreviewMode, renderCodeBlocks } from "../codeBlock/codeMirrorManager";
+import {
+    ensureSpecialCodeBlockPreview,
+    ensureMathBlockPreviewMode,
+    hasCodeMirror,
+    isCmCodeBlock,
+    renderCodeBlocks,
+} from "../codeBlock/codeMirrorManager";
 import { codeRender } from "../markdown/codeRender";
 import { mathRender } from "../markdown/mathRender";
 import { mermaidRender } from "../markdown/mermaidRender";
 import { plantumlRender } from "../markdown/plantumlRender";
-import { isCmCodeBlock } from "../codeBlock/codeMirrorManager";
 import { normalizePasteFenceLanguage } from "../codeBlock/codeBlockLanguageHints";
 import { getEditorRange, insertHTML, setRangeByWbr } from "./selection";
 
@@ -176,7 +181,9 @@ export const processCodeRender = (previewPanel: HTMLElement, vditor: IVditor) =>
         return;
     }
     if (isCmCodeBlock(parentElement)) {
-        renderCodeBlocks(vditor);
+        if (!hasCodeMirror(parentElement)) {
+            ensureSpecialCodeBlockPreview(parentElement, vditor);
+        }
         previewPanel.setAttribute("data-render", "1");
         return;
     }

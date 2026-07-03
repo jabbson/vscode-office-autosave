@@ -749,6 +749,18 @@
   }
 }
 
+// 懒加载屏外 placeholder：纯文本，无 CM / hljs
+[data-type="code-block"].vditor-code-block-placeholder,
+.vditor-ir__node.vditor-code-block-placeholder[data-type="code-block"] {
+  > pre.vditor-code-block-placeholder code {
+    display: block !important;
+    white-space: pre;
+    overflow-x: auto;
+    font-family: var(--code-font-family, var(--editor-font-family, monospace));
+    tab-size: 4;
+  }
+}
+
 .vditor-cm-block--split {
   display: flex;
   flex-direction: column;

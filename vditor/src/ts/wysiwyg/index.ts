@@ -47,6 +47,7 @@ import {
     isSpecialBlock,
     isSpecialPreviewBlock,
     sanitizeCodeBlocksInCopyFragment,
+    setupLazyCodeMirrorObserver,
 } from "../codeBlock/codeMirrorManager";
 import { focusWysiwygCodeBlock, showCode } from "./showCode";
 import { getMarkdown } from "../markdown/getMarkdown";
@@ -97,6 +98,7 @@ class WYSIWYG {
         copyEvent(vditor, this.element, this.copy);
         cutEvent(vditor, this.element, this.copy);
         bindImageLoadingState(this.element);
+        setupLazyCodeMirrorObserver(vditor);
     }
 
     public unbindListener() {

@@ -43,6 +43,18 @@ export const CM_EDITING_CLASS = "vditor-cm-block--editing";
 export const CM_SPLIT_CLASS = "vditor-cm-block--split";
 const CM_BLOCK_DATA_TYPES = new Set(["code-block", "math-block"]);
 const SPECIAL_LANGUAGES = ["mermaid", "plantuml", "math"];
+/** 视口内同时挂载 CodeMirror 的上限（参考 Milkdown 25 块文档 <15 个 CM 实例） */
+const LAZY_CM_MAX_MOUNTED = 15;
+/** 视口外扩范围，与 Milkdown 一致 */
+const LAZY_CM_VIEWPORT_MARGIN = 200;
+/** 滚出视口后延迟卸载 CodeMirror，避免快速滚动时反复创建/销毁 */
+const LAZY_CM_TEARDOWN_DELAY = 5000;
+const CM_PLACEHOLDER_CLASS = "vditor-code-block-placeholder";
+
+let lazyCodeMirrorObserver: IntersectionObserver | null = null;
+const lazyVisibilityCallbacks = new WeakMap<HTMLElement, (isIntersecting: boolean) => void>();
+const lazyTeardownTimers = new WeakMap<HTMLElement, number>();
+const lazyPendingTeardownBlocks = new Set<HTMLElement>();
 
 interface CodeMirrorBinding {
     view: EditorView;
@@ -271,6 +283,247 @@ const getCmBlockSelector = (mode: string) => {
 /** @deprecated use getCmBlockSelector */
 const getCodeBlockSelector = getCmBlockSelector;
 
+const isBlockNearViewport = (blockElement: HTMLElement, margin = LAZY_CM_VIEWPORT_MARGIN) => {
+    const rect = blockElement.getBoundingClientRect();
+    return rect.bottom >= -margin && rect.top <= window.innerHeight + margin;
+};
+
+/** 视口内特殊代码块（mermaid 等）的预览渲染 */
+export const ensureSpecialCodeBlockPreview = (blockElement: HTMLElement, vditor: IVditor) => {
+    if (bindings.has(blockElement)) {
+        return;
+    }
+    const parts = getBlockParts(blockElement);
+    if (!parts) {
+        return;
+    }
+    if (!isSpecialBlock(blockElement) || blockElement.classList.contains(CM_EDITING_CLASS)) {
+        return;
+    }
+    if (parts.preview && parts.preview.getAttribute("data-render") !== "1") {
+        rerenderSpecialPreview(parts.preview, vditor, parts.code.textContent || "");
+    }
+};
+
+/** 屏外代码块：纯文本 placeholder，零 CM / hljs 开销 */
+const showPlainCodeBlockPlaceholder = (blockElement: HTMLElement) => {
+    blockElement.classList.remove(CM_BLOCK_CLASS, CM_EDITING_CLASS, CM_SPLIT_CLASS);
+    blockElement.classList.add(CM_PLACEHOLDER_CLASS);
+    removeCodeBlockChrome(blockElement);
+    blockElement.querySelectorAll(".cm-editor, .vditor-cm-chrome").forEach((el) => {
+        el.remove();
+    });
+    const parts = getBlockParts(blockElement);
+    if (!parts) {
+        return;
+    }
+    parts.editPre.classList.remove(CM_HOST_CLASS);
+    parts.editPre.classList.add(CM_PLACEHOLDER_CLASS);
+    parts.editPre.removeAttribute("contenteditable");
+    parts.editPre.style.display = "block";
+    parts.code.removeAttribute("hidden");
+    parts.code.removeAttribute("aria-hidden");
+    parts.code.style.display = "";
+    if (parts.preview) {
+        parts.preview.style.display = "none";
+    }
+    if (isMathBlockElement(blockElement)) {
+        ensureMathBlockPreviewMode(blockElement);
+    }
+};
+
+const cancelLazyTeardown = (blockElement: HTMLElement) => {
+    const timer = lazyTeardownTimers.get(blockElement);
+    if (timer !== undefined) {
+        window.clearTimeout(timer);
+        lazyTeardownTimers.delete(blockElement);
+    }
+    lazyPendingTeardownBlocks.delete(blockElement);
+};
+
+const canTeardownLazyCodeMirror = (blockElement: HTMLElement) => {
+    const binding = bindings.get(blockElement);
+    if (!binding) {
+        return false;
+    }
+    if (binding.view.hasFocus) {
+        return false;
+    }
+    if (blockElement.contains(document.activeElement)) {
+        return false;
+    }
+    return true;
+};
+
+const scheduleLazyTeardown = (blockElement: HTMLElement) => {
+    if (!bindings.has(blockElement)) {
+        return;
+    }
+    cancelLazyTeardown(blockElement);
+    lazyPendingTeardownBlocks.add(blockElement);
+    const timer = window.setTimeout(() => {
+        lazyTeardownTimers.delete(blockElement);
+        lazyPendingTeardownBlocks.delete(blockElement);
+        if (!canTeardownLazyCodeMirror(blockElement)) {
+            return;
+        }
+        destroyCodeMirror(blockElement);
+        showPlainCodeBlockPlaceholder(blockElement);
+    }, LAZY_CM_TEARDOWN_DELAY);
+    lazyTeardownTimers.set(blockElement, timer);
+};
+
+const handleLazyCodeBlockVisibility = (
+    vditor: IVditor,
+    blockElement: HTMLElement,
+    isIntersecting: boolean,
+) => {
+    if (isMathBlockElement(blockElement)) {
+        if (isIntersecting) {
+            syncMathBlockDisplayMode(vditor, blockElement);
+        }
+        return;
+    }
+    if (isSpecialBlock(blockElement) && !blockElement.classList.contains(CM_EDITING_CLASS)) {
+        if (isIntersecting) {
+            cancelLazyTeardown(blockElement);
+            ensureSpecialCodeBlockPreview(blockElement, vditor);
+        }
+        return;
+    }
+    if (isIntersecting) {
+        cancelLazyTeardown(blockElement);
+        blockElement.classList.remove(CM_PLACEHOLDER_CLASS);
+        if (!bindings.has(blockElement)) {
+            enforceMaxMounted(vditor, blockElement);
+            mountCodeMirror(blockElement, vditor, true);
+        }
+        return;
+    }
+    if (bindings.has(blockElement)) {
+        scheduleLazyTeardown(blockElement);
+    }
+};
+
+const registerLazyCodeBlockVisibility = (vditor: IVditor, blockElement: HTMLElement) => {
+    setupLazyCodeMirrorObserver(vditor);
+    lazyVisibilityCallbacks.set(blockElement, (isIntersecting) => {
+        handleLazyCodeBlockVisibility(vditor, blockElement, isIntersecting);
+    });
+    lazyCodeMirrorObserver?.observe(blockElement);
+};
+
+const destroyCodeMirror = (blockElement: HTMLElement) => {
+    cancelLazyTeardown(blockElement);
+    const binding = bindings.get(blockElement);
+    if (!binding) {
+        return;
+    }
+    window.clearTimeout(binding.syncTimer);
+    window.clearTimeout(binding.previewTimer);
+    binding.syncCode.textContent = binding.view.state.doc.toString();
+    binding.view.destroy();
+    bindings.delete(blockElement);
+    binding.editPre.querySelector(".cm-editor")?.remove();
+    const wasSpecialEdit = blockElement.classList.contains(CM_EDITING_CLASS);
+    if (wasSpecialEdit) {
+        removeCodeBlockChrome(blockElement);
+        blockElement.classList.remove(CM_BLOCK_CLASS, CM_EDITING_CLASS, CM_SPLIT_CLASS);
+    } else {
+        showPlainCodeBlockPlaceholder(blockElement);
+    }
+};
+
+const getMountedCodeBlocks = (vditor: IVditor) => {
+    const editor = getModeEditor(vditor);
+    if (!editor) {
+        return [] as HTMLElement[];
+    }
+    const mounted: HTMLElement[] = [];
+    for (const block of editor.querySelectorAll(getCodeBlockSelector(vditor.currentMode))) {
+        const blockElement = block as HTMLElement;
+        if (bindings.has(blockElement)) {
+            mounted.push(blockElement);
+        }
+    }
+    return mounted;
+};
+
+const enforceMaxMounted = (vditor: IVditor, keepBlock: HTMLElement) => {
+    const mounted = getMountedCodeBlocks(vditor).filter((block) => block !== keepBlock);
+    while (mounted.length >= LAZY_CM_MAX_MOUNTED) {
+        let furthest: HTMLElement | null = null;
+        let maxDistance = -1;
+        const viewportCenter = window.innerHeight / 2;
+        for (const block of mounted) {
+            const binding = bindings.get(block);
+            if (binding?.view.hasFocus) {
+                continue;
+            }
+            const rect = block.getBoundingClientRect();
+            const blockCenter = rect.top + rect.height / 2;
+            const distance = Math.abs(blockCenter - viewportCenter);
+            if (distance > maxDistance) {
+                maxDistance = distance;
+                furthest = block;
+            }
+        }
+        if (!furthest) {
+            break;
+        }
+        destroyCodeMirror(furthest);
+        mounted.splice(mounted.indexOf(furthest), 1);
+    }
+};
+
+const scheduleLazyCodeBlock = (vditor: IVditor, blockElement: HTMLElement) => {
+    if (isMathBlockElement(blockElement)) {
+        syncMathBlockDisplayMode(vditor, blockElement);
+        registerLazyCodeBlockVisibility(vditor, blockElement);
+        return;
+    }
+    if (isSpecialBlock(blockElement)) {
+        if (blockElement.classList.contains(CM_EDITING_CLASS)) {
+            enforceMaxMounted(vditor, blockElement);
+            mountCodeMirror(blockElement, vditor, true);
+        } else if (isBlockNearViewport(blockElement)) {
+            ensureSpecialCodeBlockPreview(blockElement, vditor);
+        } else {
+            showPlainCodeBlockPlaceholder(blockElement);
+        }
+        registerLazyCodeBlockVisibility(vditor, blockElement);
+        return;
+    }
+    if (isBlockNearViewport(blockElement)) {
+        enforceMaxMounted(vditor, blockElement);
+        mountCodeMirror(blockElement, vditor, true);
+    } else {
+        if (bindings.has(blockElement)) {
+            cancelLazyTeardown(blockElement);
+            destroyCodeMirror(blockElement);
+        }
+        showPlainCodeBlockPlaceholder(blockElement);
+    }
+    registerLazyCodeBlockVisibility(vditor, blockElement);
+};
+
+export const setupLazyCodeMirrorObserver = (_vditor: IVditor) => {
+    if (lazyCodeMirrorObserver) {
+        return;
+    }
+    lazyCodeMirrorObserver = new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+            const blockElement = entry.target as HTMLElement;
+            const callback = lazyVisibilityCallbacks.get(blockElement);
+            callback?.(entry.isIntersecting);
+        }
+    }, {
+        root: null,
+        rootMargin: `${LAZY_CM_VIEWPORT_MARGIN}px 0px`,
+        threshold: 0,
+    });
+};
+
 /** 普通代码块只保留隐藏的 sync code + CodeMirror；特殊块编辑时保留 preview 并上下分层显示 */
 export const prepareCmBlockDom = (blockElement: HTMLElement, keepPreview = false) => {
     if (!isCmCodeBlock(blockElement) && !blockElement.classList.contains(CM_EDITING_CLASS)) {
@@ -281,6 +534,7 @@ export const prepareCmBlockDom = (blockElement: HTMLElement, keepPreview = false
         return;
     }
     const { editPre, code, preview } = parts;
+    editPre.classList.remove(CM_PLACEHOLDER_CLASS);
     blockElement.classList.add(CM_BLOCK_CLASS);
     if (blockElement.classList.contains("vditor-ir__node")) {
         blockElement.classList.add("vditor-ir__node--expand");
@@ -999,25 +1253,6 @@ const buildCodeMirrorNavigationKeymap = (vditor: IVditor, blockElement: HTMLElem
         },
     ]));
 
-const destroyCodeMirror = (blockElement: HTMLElement) => {
-    const binding = bindings.get(blockElement);
-    if (!binding) {
-        return;
-    }
-    window.clearTimeout(binding.syncTimer);
-    window.clearTimeout(binding.previewTimer);
-    binding.syncCode.textContent = binding.view.state.doc.toString();
-    binding.view.destroy();
-    bindings.delete(blockElement);
-    binding.editPre.querySelector(".cm-editor")?.remove();
-    removeCodeBlockChrome(blockElement);
-    const wasSpecialEdit = blockElement.classList.contains(CM_EDITING_CLASS);
-    blockElement.classList.remove(CM_BLOCK_CLASS, CM_EDITING_CLASS, CM_SPLIT_CLASS);
-    if (!wasSpecialEdit) {
-        prepareCmBlockDom(blockElement);
-    }
-};
-
 export const removeCmCodeBlock = (vditor: IVditor, blockElement: HTMLElement) => {
     if (!isCmCodeBlock(blockElement)) {
         return;
@@ -1115,14 +1350,12 @@ export const deactivateAllCodeMirrors = (vditor: IVditor) => {
     if (!editor) {
         return;
     }
-    editor.querySelectorAll(getCodeBlockSelector(vditor.currentMode)).forEach((block) => {
+    for (const block of editor.querySelectorAll(getCodeBlockSelector(vditor.currentMode))) {
         const blockElement = block as HTMLElement;
         if (bindings.has(blockElement)) {
             destroyCodeMirror(blockElement);
-        } else {
-            prepareCmBlockDom(blockElement);
         }
-    });
+    }
 };
 
 /** @deprecated use deactivateAllCodeMirrors */
@@ -1153,16 +1386,14 @@ export const deactivateCodeMirrorsInScope = (vditor: IVditor, scope: HTMLElement
     for (const blockElement of collectCodeBlocksInScope(vditor, scope)) {
         if (bindings.has(blockElement)) {
             destroyCodeMirror(blockElement);
-        } else {
-            prepareCmBlockDom(blockElement);
         }
     }
 };
 
-/** Spin 后仅重建作用域内的 CodeMirror */
+/** Spin 后仅重建作用域内需要编辑的 CodeMirror */
 export const renderCodeBlocksInScope = (vditor: IVditor, scope: HTMLElement) => {
     for (const blockElement of collectCodeBlocksInScope(vditor, scope)) {
-        mountCodeMirror(blockElement, vditor);
+        scheduleLazyCodeBlock(vditor, blockElement);
     }
 };
 
@@ -1341,6 +1572,9 @@ const mountCodeMirror = (blockElement: HTMLElement, vditor: IVditor, force = fal
         return;
     }
 
+    cancelLazyTeardown(blockElement);
+    blockElement.classList.remove(CM_PLACEHOLDER_CLASS);
+
     cleanupStaleCmArtifacts(blockElement);
     prepareCmBlockDom(blockElement, isSpecialBlock(blockElement));
 
@@ -1417,9 +1651,9 @@ export const renderCodeBlocks = (vditor: IVditor) => {
     if (!editor) {
         return;
     }
-    editor.querySelectorAll(getCodeBlockSelector(vditor.currentMode)).forEach((block) => {
-        mountCodeMirror(block as HTMLElement, vditor);
-    });
+    for (const block of editor.querySelectorAll(getCodeBlockSelector(vditor.currentMode))) {
+        scheduleLazyCodeBlock(vditor, block as HTMLElement);
+    }
     syncMathBlocksDisplayMode(editor, vditor);
 };
 
@@ -1436,7 +1670,7 @@ export const restoreCodeMirrorFocus = (
         return;
     }
     if (!bindings.get(blockElement)) {
-        mountCodeMirror(blockElement, vditor);
+        mountCodeMirror(blockElement, vditor, true);
     }
     const binding = bindings.get(blockElement);
     if (!binding) {
@@ -1464,7 +1698,8 @@ export const focusCodeMirror = (
         return;
     }
     if (!bindings.get(blockElement) && vditor) {
-        mountCodeMirror(blockElement, vditor);
+        enforceMaxMounted(vditor, blockElement);
+        mountCodeMirror(blockElement, vditor, true);
     }
     const binding = bindings.get(blockElement);
     if (!binding) {

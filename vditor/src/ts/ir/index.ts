@@ -32,6 +32,7 @@ import {
     isMathBlockEmpty,
     isSpecialBlock,
     isSpecialPreviewBlock,
+    setupLazyCodeMirrorObserver,
 } from "../codeBlock/codeMirrorManager";
 import { enterInlineMathEdit } from "../math/inlineMathCodeMirror";
 import { expandMarkerWithMathSync } from "./expandMarkerSync";
@@ -77,6 +78,7 @@ class IR {
         copyEvent(vditor, this.element, this.copy);
         cutEvent(vditor, this.element, this.copy);
         bindImageLoadingState(this.element);
+        setupLazyCodeMirrorObserver(vditor);
     }
 
     private copy(event: ClipboardEvent, vditor: IVditor) {

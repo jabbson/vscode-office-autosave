@@ -1,5 +1,35 @@
 # Change log
 
+# 4.1.1 2026-7-3
+
+Markdown Editor:
+
+- Add code search support within code blocks.
+- Improve editor performance when handling multiple code blocks.
+
+Export:
+
+- Move PDF export margin inside the content container.
+- Upgrade html-to-docx for improved DOCX export quality.
+- Dynamically load export dependencies (HTML, DOCX, PDF) to reduce extension size.
+
+Git History:
+
+- Add warning echo for Git operations.
+- Fix graph being incorrectly dimmed.
+- Align author filter options and simplify filtered graph.
+
+Update:
+
+- Improve view rendering performance.
+- Replace cheerio with node-html-parser.
+- Dynamically load Mermaid and Puppeteer to reduce extension size.
+
+Fix:
+
+- Resolve inline HTML rendering issue.
+- Resolve file loading failure on Windows virtual space.
+
 # 4.1.0 2026-7-1
 
 New: Add Parquet file format support.

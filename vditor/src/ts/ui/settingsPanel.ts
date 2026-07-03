@@ -91,6 +91,12 @@ const buildDropdownHTML = (key: string, label: string, options: readonly { label
     </div>`;
 };
 
+const buildToggleHTML = (key: string, label: string, checked: boolean) =>
+    `<div class="${SETTINGS_PANEL_CLASS}__toggle-row">
+        <span class="${SETTINGS_PANEL_CLASS}__toggle-label">${label}</span>
+        <button type="button" class="${SETTINGS_PANEL_CLASS}__toggle${checked ? ` ${SETTINGS_PANEL_CLASS}__toggle--on` : ""}" data-toggle-trigger data-toggle-key="${key}" role="switch" aria-checked="${checked}"></button>
+    </div>`;
+
 const parsePxValue = (value: string): number | undefined => {
     const match = value.trim().match(/^(\d+(?:\.\d+)?)px$/i);
     if (!match) {
