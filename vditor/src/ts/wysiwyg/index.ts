@@ -142,14 +142,25 @@ class WYSIWYG {
         const codeElement = hasClosestByMatchTag(range.startContainer, "CODE");
         const codeEndElement = hasClosestByMatchTag(range.endContainer, "CODE");
         if (codeElement && codeEndElement && codeEndElement.isSameNode(codeElement)) {
-            let codeText = "";
             if (codeElement.parentElement.tagName === "PRE") {
-                codeText = range.toString();
-            } else {
-                codeText = "`" + range.toString() + "`";
+                event.clipboardData.setData("text/plain", range.toString());
+                event.clipboardData.setData("text/html", buildCopiedCodeHTML(codeElement, range.toString(), true));
+                return;
             }
-            event.clipboardData.setData("text/plain", codeText);
-            event.clipboardData.setData("text/html", "");
+
+            event.clipboardData.setData("text/plain", range.toString());
+            event.clipboardData.setData("text/html", buildCopiedCodeHTML(codeElement, range.toString(), false));
+            return;
+        }
+
+        const rangeElement = (range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE ?
+            range.commonAncestorContainer as HTMLElement :
+            range.commonAncestorContainer.parentElement) as HTMLElement | null;
+        if (rangeElement && rangeElement.children.length === 1 && rangeElement.firstElementChild?.tagName === "CODE") {
+            const onlyCodeChild = rangeElement.firstElementChild as HTMLElement;
+            event.clipboardData.setData("text/plain", range.toString());
+            event.clipboardData.setData("text/html", buildCopiedCodeHTML(onlyCodeChild, range.toString(),
+                rangeElement.tagName === "PRE"));
             return;
         }
 
@@ -585,5 +596,27 @@ class WYSIWYG {
         });
     }
 }
+
+const buildCopiedCodeHTML = (sourceCodeElement: HTMLElement, text: string, wrapPre: boolean) => {
+    const codeElement = document.createElement("code");
+    codeElement.className = sourceCodeElement.className;
+    codeElement.textContent = text;
+    for (const name of sourceCodeElement.getAttributeNames()) {
+        if (name === "class") {
+            continue;
+        }
+        const value = sourceCodeElement.getAttribute(name);
+        if (value !== null) {
+            codeElement.setAttribute(name, value);
+        }
+    }
+    if (!wrapPre) {
+        return codeElement.outerHTML;
+    }
+
+    const preElement = document.createElement("pre");
+    preElement.appendChild(codeElement);
+    return preElement.outerHTML;
+};
 
 export { WYSIWYG };
