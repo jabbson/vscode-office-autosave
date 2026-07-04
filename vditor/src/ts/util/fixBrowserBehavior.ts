@@ -98,6 +98,32 @@ const buildEmptyListItemHTML = (liElement: HTMLElement) => {
     return `<li${markerAttr}>${Constants.ZWSP}<wbr></li>`;
 };
 
+const isEmptyParagraphBlock = (element: Element | null) => {
+    return !!element
+        && element.tagName === "P"
+        && (element as HTMLElement).getAttribute("data-block") === "0"
+        && (element as HTMLElement).textContent.trim().replace(Constants.ZWSP, "") === "";
+};
+
+const dedupeAdjacentEmptyParagraphs = (element: HTMLElement) => {
+    const previousElement = element.previousElementSibling;
+    const nextElement = element.nextElementSibling;
+
+    if (isEmptyParagraphBlock(previousElement)) {
+        previousElement.remove();
+    }
+    if (isEmptyParagraphBlock(nextElement)) {
+        nextElement.remove();
+    }
+};
+
+const createParagraphFromListItem = (liElement: HTMLElement) => {
+    const paragraphElement = document.createElement("p");
+    paragraphElement.setAttribute("data-block", "0");
+    paragraphElement.innerHTML = `<wbr>${liElement.innerHTML}`;
+    return paragraphElement;
+};
+
 const replaceListItemWithEmptyBlock = (liElement: HTMLElement) => {
     const listElement = liElement.parentElement;
     const beforeListElement = listElement.cloneNode(false) as HTMLElement;
@@ -132,6 +158,7 @@ const replaceListItemWithEmptyBlock = (liElement: HTMLElement) => {
         fragment.appendChild(afterListElement);
     }
     listElement.replaceWith(fragment);
+    dedupeAdjacentEmptyParagraphs(emptyBlockElement);
 };
 
 export const insertEmptyBlock = (vditor: IVditor, position: InsertPosition) => {
@@ -614,13 +641,14 @@ export const fixList = (range: Range, vditor: IVditor, pElement: HTMLElement | f
             !liElement.previousElementSibling && range.toString() === "" &&
             getSelectPosition(liElement, vditor[vditor.currentMode].element, range).start === 0) {
             // 光标位于点和第一个字符中间时，无法删除 li 元素
+            const paragraphElement = createParagraphFromListItem(liElement);
             if (liElement.nextElementSibling) {
-                liElement.parentElement.insertAdjacentHTML("beforebegin",
-                    `<p data-block="0"><wbr>${liElement.innerHTML}</p>`);
+                liElement.parentElement.insertAdjacentElement("beforebegin", paragraphElement);
                 liElement.remove();
             } else {
-                liElement.parentElement.outerHTML = `<p data-block="0"><wbr>${liElement.innerHTML}</p>`;
+                liElement.parentElement.replaceWith(paragraphElement);
             }
+            dedupeAdjacentEmptyParagraphs(paragraphElement);
             setRangeByWbr(vditor[vditor.currentMode].element, range);
             recordHistoryChange(vditor);
             event.preventDefault();
