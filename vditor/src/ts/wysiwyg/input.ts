@@ -16,7 +16,7 @@ import {
 } from "../codeBlock/codeMirrorManager";
 import { getEditorRange, setRangeByWbr } from "../util/selection";
 import { expandMarker } from "../ir/expandMarker";
-import { renderToc } from "../util/toc";
+import { scheduleRenderToc } from "../util/toc";
 import { afterRenderEvent } from "./afterRenderEvent";
 import { ensureEditorBoundaryParagraphs } from "./renderDomByMd";
 import { previoueIsEmptyA } from "./inlineTag";
@@ -259,7 +259,7 @@ export const input = (vditor: IVditor, range: Range, event?: InputEvent) => {
         postProcessMs = debug ? performance.now() - stepStart : 0;
     }
     stepStart = debug ? performance.now() : 0;
-    renderToc(vditor);
+    scheduleRenderToc(vditor);
     afterRenderEvent(vditor, {
         enableAddUndoStack: true,
         enableHint: true,

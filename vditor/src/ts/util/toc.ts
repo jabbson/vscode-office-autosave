@@ -6,6 +6,35 @@ import {execAfterRender, insertAfterBlock, insertBeforeBlock} from "./fixBrowser
 import {hasClosestByAttribute, hasClosestByClassName} from "./hasClosest";
 import {getSelectPosition} from "./selection";
 
+const tocTimeoutMap = new WeakMap<IVditor, number>();
+
+const getTocRenderDelay = (vditor: IVditor) => {
+    return Math.max(100, vditor.options.undoDelay ?? 800);
+};
+
+export const cancelScheduledRenderToc = (vditor: IVditor) => {
+    const timeoutId = tocTimeoutMap.get(vditor);
+    if (timeoutId) {
+        clearTimeout(timeoutId);
+        tocTimeoutMap.delete(vditor);
+    }
+};
+
+/** 合并 input / recordHistory 等路径的 TOC 刷新，停笔后延迟一次执行 */
+export const scheduleRenderToc = (vditor: IVditor) => {
+    cancelScheduledRenderToc(vditor);
+    tocTimeoutMap.set(vditor, window.setTimeout(() => {
+        tocTimeoutMap.delete(vditor);
+        renderToc(vditor);
+    }, getTocRenderDelay(vditor)));
+};
+
+/** 需要立即反映结构变更时调用（undo、切模式、拖块等） */
+export const renderTocNow = (vditor: IVditor) => {
+    cancelScheduledRenderToc(vditor);
+    renderToc(vditor);
+};
+
 const scrollToHeading = (vditor: IVditor, headingElement: HTMLElement) => {
     const editorElement = vditor[vditor.currentMode].element;
     if (vditor.options.height === "auto") {

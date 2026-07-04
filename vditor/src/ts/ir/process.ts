@@ -8,7 +8,7 @@ import {listToggle} from "../util/fixBrowserBehavior";
 import {hasClosestBlock, hasClosestByAttribute, hasClosestByClassName, hasClosestByMatchTag} from "../util/hasClosest";
 import {getEditorRange, setRangeByWbr, setSelectionFocus} from "../util/selection";
 import {getHistoryRecordWait} from "../util/historySchedule";
-import {renderToc} from "../util/toc";
+import {scheduleRenderToc} from "../util/toc";
 import {highlightToolbarIR} from "./highlightToolbarIR";
 import {input} from "./input";
 
@@ -46,7 +46,7 @@ export const recordHistory = (vditor: IVditor, options = {
     }
 
     if (vditor.options.outline.enable) {
-        renderToc(vditor);
+        scheduleRenderToc(vditor);
     }
 
     vditor.ir.afterRenderLastAt = Date.now();

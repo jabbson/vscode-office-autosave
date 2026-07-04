@@ -40,6 +40,7 @@ import { handleHtmlEditorClick } from "../htmlInline/htmlInlineEditor";
 import { handleFrontMatterEditorClick } from "../codeBlock/frontMatterEditor";
 import { linkClickEvent } from "../util/linkClick";
 import { highlightToolbarIR } from "./highlightToolbarIR";
+import { scheduleHighlightToolbar } from "../util/highlightToolbar";
 import { input } from "./input";
 import { processAfterRender, processHint } from "./process";
 import { initBlockHandle } from "../wysiwyg/blockHandle";
@@ -316,7 +317,7 @@ class IR {
             }
             if (event.key === "Enter") {
             }
-            highlightToolbarIR(vditor);
+            scheduleHighlightToolbar(vditor);
             if ((event.key === "Backspace" || event.key === "Delete") &&
                 vditor.ir.element.innerHTML !== "" && vditor.ir.element.childNodes.length === 1 &&
                 vditor.ir.element.firstElementChild && vditor.ir.element.firstElementChild.tagName === "P"

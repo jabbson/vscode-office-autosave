@@ -3,7 +3,7 @@ import { syncBlockMarkerTop } from "../util/blockMarker";
 import { execAfterRender } from "../util/fixBrowserBehavior";
 import { scrollElementIntoEditorView, setSelectionFocus } from "../util/selection";
 import { telemetry } from "../util/telemetry";
-import { renderToc } from "../util/toc";
+import { renderTocNow } from "../util/toc";
 
 const ROOT_CLASS = "vditor-block-handle";
 const DRAG_CLASS = "vditor-block-handle__drag";
@@ -614,7 +614,7 @@ const finishDrag = (vditor: IVditor, state: IBlockHandleState) => {
                 from: state.originalDropTarget?.container.tagName.toLowerCase() || "",
                 to: dropTarget.container.tagName.toLowerCase(),
             });
-            renderToc(vditor);
+            renderTocNow(vditor);
             vditor.undo.addToUndoStack(vditor);
             execAfterRender(vditor, {
                 enableAddUndoStack: false,

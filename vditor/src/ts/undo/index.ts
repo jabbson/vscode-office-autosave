@@ -14,7 +14,7 @@ import {execAfterRender} from "../util/fixBrowserBehavior";
 import {highlightToolbar} from "../util/highlightToolbar";
 import {processCodeRender} from "../util/processCode";
 import {setRangeByWbr, setSelectionFocus} from "../util/selection";
-import {renderToc} from "../util/toc";
+import {renderTocNow} from "../util/toc";
 import {formatMs, logPerf} from "../util/log";
 
 interface IUndo {
@@ -215,7 +215,7 @@ class Undo {
                 vditor[vditor.currentMode].element, vditor[vditor.currentMode].element.ownerDocument.createRange());
         }
 
-        renderToc(vditor);
+        renderTocNow(vditor);
 
         execAfterRender(vditor, {
             enableAddUndoStack: false,

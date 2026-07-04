@@ -27,7 +27,8 @@ import {
     getSelectPosition,
     setRangeByWbr,
 } from "../util/selection";
-import { clickToc, renderToc } from "../util/toc";
+import { clickToc, scheduleRenderToc } from "../util/toc";
+import { scheduleHighlightToolbar } from "../util/highlightToolbar";
 import { afterRenderEvent } from "./afterRenderEvent";
 import {
     genAPopover,
@@ -260,7 +261,7 @@ class WYSIWYG {
             const headingElement = hasClosestByHeadings(getSelection().getRangeAt(0).startContainer);
             if (headingElement && headingElement.textContent === "") {
                 // heading 为空删除 https://github.com/Vanessa219/vditor/issues/150
-                renderToc(vditor);
+                scheduleRenderToc(vditor);
                 return;
             }
             if (!isFirefox()) {
@@ -335,10 +336,10 @@ class WYSIWYG {
             const headingElement = hasClosestByHeadings(getSelection().getRangeAt(0).startContainer);
             if (headingElement && headingElement.textContent === "") {
                 // heading 为空删除 https://github.com/Vanessa219/vditor/issues/150
-                renderToc(vditor);
+                scheduleRenderToc(vditor);
                 headingElement.remove();
             } else if (headingElement && splitHeadingOnNewline(vditor, headingElement)) {
-                renderToc(vditor);
+                scheduleRenderToc(vditor);
             }
 
             if ((startSpace && blockElement.getAttribute("data-type") !== "code-block")
@@ -515,7 +516,7 @@ class WYSIWYG {
                 expandMarkerWithMathSync(range, vditor);
             }
 
-            highlightToolbarWYSIWYG(vditor);
+            scheduleHighlightToolbar(vditor);
 
             if (event.key !== "ArrowDown" && event.key !== "ArrowRight" && event.key !== "Backspace"
                 && event.key !== "ArrowLeft" && event.key !== "ArrowUp") {
