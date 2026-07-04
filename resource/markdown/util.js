@@ -35,7 +35,6 @@ export async function getToolbar(resPath, onSave = null) {
         },
         'upload',
         "|",
-        'editor-theme-label',
         "editor-theme",
         "editor-theme-toggle",
         "|",
