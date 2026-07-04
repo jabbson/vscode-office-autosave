@@ -41,6 +41,37 @@ const finishTableCellNavigation = (vditor: IVditor, range: Range, cell: HTMLTabl
     expandMarkerWithMathSync(range, vditor);
 };
 
+const removePreviousTab = (range: Range, tab: string) => {
+    const removeFromTextNode = (textNode: Text, endOffset: number) => {
+        const text = textNode.textContent || "";
+        if (endOffset < tab.length || text.slice(endOffset - tab.length, endOffset) !== tab) {
+            return false;
+        }
+        textNode.deleteData(endOffset - tab.length, tab.length);
+        range.setStart(textNode, endOffset - tab.length);
+        range.collapse(true);
+        return true;
+    };
+
+    const { startContainer, startOffset } = range;
+    if (startContainer.nodeType === Node.TEXT_NODE) {
+        if (removeFromTextNode(startContainer as Text, startOffset)) {
+            return true;
+        }
+        if (startOffset === 0 && startContainer.previousSibling?.nodeType === Node.TEXT_NODE) {
+            const previousSibling = startContainer.previousSibling as Text;
+            return removeFromTextNode(previousSibling, previousSibling.textContent.length);
+        }
+        return false;
+    }
+
+    const previousNode = startOffset > 0 ? startContainer.childNodes[startOffset - 1] : startContainer.previousSibling;
+    if (previousNode?.nodeType === Node.TEXT_NODE) {
+        return removeFromTextNode(previousNode as Text, previousNode.textContent.length);
+    }
+    return false;
+};
+
 // https://github.com/Vanessa219/vditor/issues/508 软键盘无法删除空块
 export const fixGSKeyBackspace = (event: KeyboardEvent, vditor: IVditor, startContainer: Node) => {
     if (event.keyCode === 229 && event.code === "" && event.key === "Unidentified") {
@@ -701,7 +732,7 @@ export const fixList = (range: Range, vditor: IVditor, pElement: HTMLElement | f
 export const fixTab = (vditor: IVditor, range: Range, event: KeyboardEvent) => {
     if (vditor.options.tab && event.key === "Tab") {
         if (event.shiftKey) {
-            // TODO shift+tab
+            removePreviousTab(range, vditor.options.tab);
         } else {
             if (range.toString() === "") {
                 range.insertNode(document.createTextNode(vditor.options.tab));
@@ -1179,10 +1210,14 @@ export const fixCodeBlock = (vditor: IVditor, event: KeyboardEvent, codeRenderEl
     }
 
     // tab
-    // TODO shift + tab, shift and 选中文字
-    if (vditor.options.tab && event.key === "Tab" && !event.shiftKey && range.toString() === "") {
-        range.insertNode(document.createTextNode(vditor.options.tab));
-        range.collapse(false);
+    // TODO shift and 选中文字
+    if (vditor.options.tab && event.key === "Tab" && range.toString() === "") {
+        if (event.shiftKey) {
+            removePreviousTab(range, vditor.options.tab);
+        } else {
+            range.insertNode(document.createTextNode(vditor.options.tab));
+            range.collapse(false);
+        }
         execAfterRender(vditor);
         event.preventDefault();
         return true;
