@@ -1964,13 +1964,34 @@
 }
 
 .git-graph-settings-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
     white-space: nowrap;
-    text-align: right;
 }
 
 .git-graph-settings-panel .git-graph-icon-btn {
     width: 22px;
     height: 22px;
+}
+
+.git-graph-settings-panel .git-graph-settings-action-edit {
+    color: var(--vscode-textLink-foreground, #3794ff);
+}
+
+.git-graph-settings-panel .git-graph-settings-action-edit:hover:not(:disabled),
+.git-graph-settings-panel .git-graph-settings-action-edit:focus-visible:not(:disabled) {
+    background: color-mix(in srgb, var(--vscode-textLink-foreground, #3794ff) 14%, transparent);
+}
+
+.git-graph-settings-panel .git-graph-settings-action-delete {
+    color: var(--vscode-errorForeground, #f14c4c);
+}
+
+.git-graph-settings-panel .git-graph-settings-action-delete:hover:not(:disabled),
+.git-graph-settings-panel .git-graph-settings-action-delete:focus-visible:not(:disabled) {
+    background: color-mix(in srgb, var(--vscode-errorForeground, #f14c4c) 14%, transparent);
 }
 
 .git-graph-settings-panel .git-graph-icon-btn .codicon {

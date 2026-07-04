@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { GitPullDefaults, FileHistorySplitLayout } from '../util/gitHistoryState';
 import type { GitRemoteDetail } from '../types';
 
@@ -23,11 +23,35 @@ interface SettingsWidgetProps {
     onQuickSync: () => void;
 }
 
+async function copyText(text: string): Promise<void> {
+    if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+    }
+
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', 'true');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    textarea.style.pointerEvents = 'none';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const copied = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    if (!copied) {
+        throw new Error('Copy failed');
+    }
+}
+
 export default function SettingsWidget({
     open, repo, remotes, loading, pullDefaults, fileHistorySplitLayout, onClose,
     onPullDefaultsChange, onFileHistorySplitLayoutChange, onAddRemote, onEditRemote, onDeleteRemote,
     canQuickSync, syncing, fetching, pulling, pushing, onQuickSync,
 }: SettingsWidgetProps) {
+    const [copiedRemoteName, setCopiedRemoteName] = useState<string | null>(null);
+    const copyResetTimerRef = useRef<number | null>(null);
+
     useEffect(() => {
         if (!open) return;
         const onKey = (e: KeyboardEvent) => {
@@ -37,9 +61,31 @@ export default function SettingsWidget({
         return () => document.removeEventListener('keydown', onKey);
     }, [open, onClose]);
 
+    useEffect(() => () => {
+        if (copyResetTimerRef.current !== null) {
+            window.clearTimeout(copyResetTimerRef.current);
+        }
+    }, []);
+
     if (!open) return null;
 
     const repoLabel = repo.split(/[/\\]/).pop() ?? repo;
+    const handleCopyRemote = async (remote: GitRemoteDetail) => {
+        if (!remote.url) return;
+        try {
+            await copyText(remote.url);
+            setCopiedRemoteName(remote.name);
+            if (copyResetTimerRef.current !== null) {
+                window.clearTimeout(copyResetTimerRef.current);
+            }
+            copyResetTimerRef.current = window.setTimeout(() => {
+                setCopiedRemoteName((current) => (current === remote.name ? null : current));
+                copyResetTimerRef.current = null;
+            }, 1600);
+        } catch {
+            setCopiedRemoteName(null);
+        }
+    };
 
     return (
         <aside className="git-graph-settings-panel" aria-label="Settings">
@@ -109,7 +155,19 @@ export default function SettingsWidget({
                                                 <td className="git-graph-settings-actions">
                                                     <button
                                                         type="button"
-                                                        className="git-graph-icon-btn"
+                                                        className="git-graph-icon-btn git-graph-settings-action-copy"
+                                                        title={copiedRemoteName === remote.name ? 'Copied' : 'Copy remote URL'}
+                                                        onClick={() => void handleCopyRemote(remote)}
+                                                        disabled={!remote.url}
+                                                    >
+                                                        <span
+                                                            className={`codicon ${copiedRemoteName === remote.name ? 'codicon-check' : 'codicon-copy'}`}
+                                                            aria-hidden
+                                                        />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="git-graph-icon-btn git-graph-settings-action-edit"
                                                         title="Edit remote"
                                                         onClick={() => onEditRemote(remote.name)}
                                                     >
@@ -117,7 +175,7 @@ export default function SettingsWidget({
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        className="git-graph-icon-btn"
+                                                        className="git-graph-icon-btn git-graph-settings-action-delete"
                                                         title="Delete remote"
                                                         onClick={() => onDeleteRemote(remote.name)}
                                                     >
