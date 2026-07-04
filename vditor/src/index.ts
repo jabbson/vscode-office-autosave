@@ -2,6 +2,7 @@ import "./assets/less/index.less";
 import * as adapterRender from "./ts/markdown/adapterRender";
 import { codeRender } from "./ts/markdown/codeRender";
 import { codeMirrorPreviewRender } from "./ts/codeBlock/codeMirrorPreviewRender";
+import { renderCodeBlocks } from "./ts/codeBlock/codeMirrorManager";
 import { mathRender } from "./ts/markdown/mathRender";
 import { mermaidRender } from "./ts/markdown/mermaidRender";
 import { outlineRender } from "./ts/markdown/outlineRender";
@@ -38,7 +39,9 @@ import { clearDocumentScroll, restoreDocumentScroll } from "./ts/util/documentSt
 import { getSelectText } from "./ts/util/getSelectText";
 import { Options } from "./ts/util/Options";
 import { processCodeRender } from "./ts/util/processCode";
-import { getCursorPosition, getEditorRange } from "./ts/util/selection";
+import { hasClosestBlock } from "./ts/util/hasClosest";
+import { getCursorPosition, getEditorRange, insertMdForAIReplace, setSelectionFocus } from "./ts/util/selection";
+import { recordHistoryChange } from "./ts/util/instantHistory";
 import {
     captureEditorSelection,
     hideFrozenSelection,
@@ -455,16 +458,16 @@ class Vditor {
         if (this.aiSelectionRange) {
             showFrozenSelection(this.vditor, this.aiSelectionRange);
         }
-        const finishReview = (cancel = false) => {
+        const finishReview = (cancel = false, restoreSelection = true) => {
             const range = this.aiSelectionRange;
             const hadSelection = !!range && !this.aiReplaceAll;
             this.enable();
             hideFrozenSelection(this.vditor);
             this.aiSelectionRange = null;
             this.aiReviewPanel.close();
-            if (hadSelection) {
+            if (restoreSelection && hadSelection) {
                 restoreEditorSelection(this.vditor, range);
-            } else {
+            } else if (restoreSelection) {
                 this.focus();
             }
             if (cancel) {
@@ -475,8 +478,9 @@ class Vditor {
             markdown,
             {
                 onAccept: (result) => {
-                    finishReview(false);
-                    this.applyAIResult(result, this.aiReplaceAll);
+                    const range = this.aiSelectionRange?.cloneRange() || null;
+                    finishReview(false, false);
+                    this.applyAIResult(result, this.aiReplaceAll, range);
                 },
                 onReject: () => finishReview(false),
                 onStop: () => finishReview(true),
@@ -500,18 +504,42 @@ class Vditor {
     }
 
     /** 接收 AI 润色结果：退出 loading 状态，将 markdown 并入正文 */
-    public applyAIResult(markdown: string, replaceAll = false) {
+    public applyAIResult(markdown: string, replaceAll = false, selectionRange?: Range | null) {
         this.enable();
         hideFrozenSelection(this.vditor);
         if (replaceAll) {
             this.aiSelectionRange = null;
             this.setValue(markdown);
         } else {
-            restoreEditorSelection(this.vditor, this.aiSelectionRange);
+            const range = selectionRange ?? this.aiSelectionRange;
             this.aiSelectionRange = null;
-            document.execCommand("delete", false);
-            const html = this.vditor.lute.Md2HTML(markdown);
-            document.execCommand("insertHTML", false, html);
+            const editor = this.vditor[this.vditor.currentMode].element;
+            const hostBlock = hasClosestBlock(range.startContainer) as HTMLElement | null;
+            if (range && !range.collapsed
+                && editor.contains(range.startContainer)
+                && editor.contains(range.endContainer)) {
+                this.vditor[this.vditor.currentMode].preventInput = true;
+                range.deleteContents();
+                range.collapse(true);
+                setSelectionFocus(range);
+                this.vditor[this.vditor.currentMode].range = range;
+            } else {
+                restoreEditorSelection(this.vditor, range);
+                this.vditor[this.vditor.currentMode].preventInput = true;
+                document.execCommand("delete", false);
+            }
+            const editorHTML = this.vditor.currentMode === "wysiwyg"
+                ? this.vditor.lute.Md2VditorDOM(markdown.trim())
+                : this.vditor.lute.Md2VditorIRDOM(markdown.trim());
+            insertMdForAIReplace(editorHTML, this.vditor, hostBlock);
+            editor.querySelectorAll(`.vditor-${this.vditor.currentMode}__preview[data-render='2']`)
+                .forEach((item: HTMLElement) => {
+                    processCodeRender(item, this.vditor);
+                });
+            if (this.vditor.currentMode === "wysiwyg") {
+                renderCodeBlocks(this.vditor);
+            }
+            recordHistoryChange(this.vditor);
         }
     }
 
