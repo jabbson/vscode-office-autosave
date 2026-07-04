@@ -43,6 +43,8 @@ import {
     setGlobalLocalStorageSetting,
     resetGlobalSettings,
     applyEditorSettings,
+    applyTypewriterModeClass,
+    TYPEWRITER_MODE_KEY,
 } from "../util/globalLocalStorageSettings";
 import {getCodeFontFamilyOptions} from "../util/fontFamilyOptions";
 
@@ -248,6 +250,9 @@ export class Settings extends MenuItem {
                 toggleTrigger.classList.toggle(`${SETTINGS_PANEL_CLASS}__toggle--on`, next);
                 toggleTrigger.setAttribute("aria-checked", String(next));
                 setGlobalLocalStorageSetting(key, next ? true : undefined);
+                if (key === TYPEWRITER_MODE_KEY) {
+                    applyTypewriterModeClass(vditor.element, next);
+                }
                 event.preventDefault();
                 event.stopPropagation();
                 return;
