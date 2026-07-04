@@ -1,8 +1,8 @@
 import { isInsideCodeBlockChrome } from "../codeBlock/codeMirrorManager";
 import { syncBlockMarkerTop } from "../util/blockMarker";
+import { execAfterRender } from "../util/fixBrowserBehavior";
 import { scrollElementIntoEditorView, setSelectionFocus } from "../util/selection";
 import { telemetry } from "../util/telemetry";
-import { afterRenderEvent } from "./afterRenderEvent";
 import { renderToc } from "../util/toc";
 
 const ROOT_CLASS = "vditor-block-handle";
@@ -14,6 +14,7 @@ const DROP_LINE_CLASS = "vditor-block-handle__drop-line";
 const DRAGGING_CLASS = "vditor-block-handle--dragging";
 const SOURCE_DRAGGING_CLASS = "vditor-block-handle__source--dragging";
 const GHOST_CLASS = "vditor-block-handle__ghost";
+const TARGET_CLASS = "vditor-block-handle-target";
 const HANDLE_GAP = 4;
 const HANDLE_SIZE = 20;
 /** 向上拖拽时，插入线提前触发的像素容差 */
@@ -48,7 +49,16 @@ interface IBlockHandleState {
     unbind?: () => void;
 }
 
-const handleMap = new WeakMap<IVditor, IBlockHandleState>();
+const handleMap = new WeakMap<HTMLElement, IBlockHandleState>();
+
+const isEditingMode = (vditor: IVditor) => {
+    return vditor.currentMode === "wysiwyg" || vditor.currentMode === "ir";
+};
+
+const getBlockHandleState = (vditor: IVditor) => {
+    const editorElement = vditor[vditor.currentMode]?.element;
+    return editorElement ? handleMap.get(editorElement) : undefined;
+};
 
 const isListElement = (element: Element | null) => {
     return !!element && (element.tagName === "UL" || element.tagName === "OL");
@@ -381,6 +391,21 @@ const applyDropTarget = (block: HTMLElement, target: DropTarget, editor: HTMLEle
     }
 };
 
+const clearBlockHandleTarget = (block: HTMLElement | null) => {
+    block?.classList.remove(TARGET_CLASS);
+};
+
+const setBlockHandleTarget = (state: IBlockHandleState, block: HTMLElement | null) => {
+    if (state.activeBlock && state.activeBlock !== block) {
+        clearBlockHandleTarget(state.activeBlock);
+    }
+    if (block) {
+        block.classList.add(TARGET_CLASS);
+    } else {
+        clearBlockHandleTarget(state.activeBlock);
+    }
+};
+
 const positionHandle = (state: IBlockHandleState, block: HTMLElement) => {
     const blockRect = block.getBoundingClientRect();
     const wrapperRect = state.wrapper.getBoundingClientRect();
@@ -438,6 +463,7 @@ const hideHandle = (state: IBlockHandleState) => {
     }
     state.hideTimer = window.setTimeout(() => {
         state.hideTimer = null;
+        clearBlockHandleTarget(state.activeBlock);
         state.activeBlock = null;
         state.visible = false;
         state.root.classList.remove(`${ROOT_CLASS}--visible`);
@@ -476,7 +502,7 @@ const createEmptySiblingHTML = (block: HTMLElement) => {
 };
 
 const focusInsertedBlock = (vditor: IVditor, block: HTMLElement) => {
-    const editor = vditor.wysiwyg.element;
+    const editor = vditor[vditor.currentMode].element;
     const wbr = block.querySelector("wbr");
     const range = editor.ownerDocument.createRange();
     editor.focus({ preventScroll: true });
@@ -502,7 +528,7 @@ const focusInsertedBlock = (vditor: IVditor, block: HTMLElement) => {
 
 const insertEmptyBlockAfterActiveBlock = (vditor: IVditor, state: IBlockHandleState) => {
     const block = state.activeBlock;
-    if (!block || !block.isConnected || vditor.currentMode !== "wysiwyg") {
+    if (!block || !block.isConnected || !isEditingMode(vditor)) {
         return;
     }
 
@@ -520,7 +546,7 @@ const insertEmptyBlockAfterActiveBlock = (vditor: IVditor, state: IBlockHandleSt
     focusInsertedBlock(vditor, insertedBlock);
     positionHandle(state, insertedBlock);
     vditor.undo.addToUndoStack(vditor);
-    afterRenderEvent(vditor, {
+    execAfterRender(vditor, {
         enableAddUndoStack: false,
         enableHint: false,
         enableInput: true,
@@ -564,7 +590,7 @@ const finishDrag = (vditor: IVditor, state: IBlockHandleState) => {
             });
             renderToc(vditor);
             vditor.undo.addToUndoStack(vditor);
-            afterRenderEvent(vditor, {
+            execAfterRender(vditor, {
                 enableAddUndoStack: false,
                 enableHint: false,
                 enableInput: true,
@@ -579,7 +605,7 @@ const finishDrag = (vditor: IVditor, state: IBlockHandleState) => {
 
 const startDrag = (vditor: IVditor, state: IBlockHandleState, event: PointerEvent) => {
     const block = state.activeBlock;
-    if (!block || vditor.currentMode !== "wysiwyg") {
+    if (!block || !isEditingMode(vditor)) {
         return;
     }
     event.preventDefault();
@@ -634,7 +660,7 @@ const startDrag = (vditor: IVditor, state: IBlockHandleState, event: PointerEven
 };
 
 const shouldShowHandle = (vditor: IVditor, editorElement: HTMLElement | undefined, target: EventTarget | null) => {
-    if (vditor.currentMode !== "wysiwyg" || !editorElement) {
+    if (!isEditingMode(vditor) || !editorElement || vditor[vditor.currentMode]?.element !== editorElement) {
         return false;
     }
     if (editorElement.getAttribute("contenteditable") === "false") {
@@ -647,7 +673,7 @@ const shouldShowHandle = (vditor: IVditor, editorElement: HTMLElement | undefine
 };
 
 const showForBlock = (vditor: IVditor, block: HTMLElement | null) => {
-    const state = handleMap.get(vditor);
+    const state = getBlockHandleState(vditor);
     if (!state || !block || state.dragging) {
         return;
     }
@@ -655,12 +681,13 @@ const showForBlock = (vditor: IVditor, block: HTMLElement | null) => {
         clearTimeout(state.hideTimer);
         state.hideTimer = null;
     }
+    setBlockHandleTarget(state, block);
     state.activeBlock = block;
     positionHandle(state, block);
 };
 
 export const initBlockHandle = (vditor: IVditor, wrapper: HTMLElement, editorElement: HTMLElement) => {
-    if (handleMap.has(vditor)) {
+    if (handleMap.has(editorElement)) {
         return;
     }
 
@@ -706,7 +733,7 @@ export const initBlockHandle = (vditor: IVditor, wrapper: HTMLElement, editorEle
         dragOffsetX: 0,
         dragOffsetY: 0,
     };
-    handleMap.set(vditor, state);
+    handleMap.set(editorElement, state);
 
     dragBtn.addEventListener("mousedown", (event) => {
         event.preventDefault();
@@ -754,6 +781,7 @@ export const initBlockHandle = (vditor: IVditor, wrapper: HTMLElement, editorEle
         if (!state.visible) {
             return;
         }
+        setBlockHandleTarget(state, null);
         state.activeBlock = null;
         state.visible = false;
         const root = state.root;
@@ -770,6 +798,7 @@ export const initBlockHandle = (vditor: IVditor, wrapper: HTMLElement, editorEle
     window.addEventListener("scroll", onScroll, { passive: true });
 
     state.unbind = () => {
+        setBlockHandleTarget(state, null);
         wrapper.removeEventListener("mousemove", onMouseMove);
         wrapper.removeEventListener("mouseleave", onMouseLeave);
         editorElement.removeEventListener("keydown", onKeyDown, { capture: true });
@@ -777,7 +806,7 @@ export const initBlockHandle = (vditor: IVditor, wrapper: HTMLElement, editorEle
         window.removeEventListener("scroll", onScroll);
         root.remove();
         dropLine.remove();
-        handleMap.delete(vditor);
+        handleMap.delete(editorElement);
     };
 };
 
@@ -786,8 +815,11 @@ export const updateBlockHandle = (_vditor: IVditor, _target?: Node) => {
 };
 
 export const hideBlockHandle = (vditor: IVditor) => {
-    const state = handleMap.get(vditor);
-    if (state) {
-        hideHandle(state);
+    for (const mode of ["wysiwyg", "ir"] as const) {
+        const editorElement = vditor[mode]?.element;
+        const state = editorElement ? handleMap.get(editorElement) : undefined;
+        if (state) {
+            hideHandle(state);
+        }
     }
 };

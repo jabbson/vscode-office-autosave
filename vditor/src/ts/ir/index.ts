@@ -42,6 +42,8 @@ import { linkClickEvent } from "../util/linkClick";
 import { highlightToolbarIR } from "./highlightToolbarIR";
 import { input } from "./input";
 import { processAfterRender, processHint } from "./process";
+import { initBlockHandle } from "../wysiwyg/blockHandle";
+import { initTableHandle } from "../wysiwyg/tableHandle";
 
 class IR {
     public range: Range;
@@ -66,6 +68,9 @@ class IR {
         this.popover = divElement.firstElementChild.nextElementSibling as HTMLDivElement;
 
         this.bindEvent(vditor);
+
+        initBlockHandle(vditor, divElement, this.element);
+        initTableHandle(vditor, divElement, this.element);
 
         linkClickEvent(vditor, divElement);
         focusEvent(vditor, this.element);

@@ -2,6 +2,7 @@ import { isInsideCodeBlockChrome } from "../codeBlock/codeMirrorManager";
 import {
     deleteColumn,
     deleteRow,
+    execAfterRender,
     insertColumn,
     insertRow,
     insertRowAbove,
@@ -12,7 +13,6 @@ import {
 import { codicon, TABLE_CODICONS } from "../util/codicon";
 import { hasClosestByMatchTag } from "../util/hasClosest";
 import { getEditorRange, setSelectionFocus } from "../util/selection";
-import { afterRenderEvent } from "./afterRenderEvent";
 
 const ROOT_CLASS = "vditor-table-handle";
 const AXIS_CLASS = "vditor-table-handle__axis";
@@ -74,7 +74,16 @@ interface ITableHandleState {
     unbind?: () => void;
 }
 
-const handleMap = new WeakMap<IVditor, ITableHandleState>();
+const handleMap = new WeakMap<HTMLElement, ITableHandleState>();
+
+const isEditingMode = (vditor: IVditor) => {
+    return vditor.currentMode === "wysiwyg" || vditor.currentMode === "ir";
+};
+
+const getTableHandleState = (vditor: IVditor) => {
+    const editorElement = vditor[vditor.currentMode]?.element;
+    return editorElement ? handleMap.get(editorElement) : undefined;
+};
 
 const isTableHandleElement = (element: Element | null) => {
     return !!element?.closest(`.${ROOT_CLASS}, .${MENU_CLASS}`);
@@ -150,7 +159,7 @@ const getColumnIndex = (cell: HTMLTableCellElement) => {
 };
 
 const shouldShowHandle = (vditor: IVditor, editorElement: HTMLElement, target: EventTarget | null) => {
-    if (vditor.currentMode !== "wysiwyg") {
+    if (!isEditingMode(vditor) || vditor[vditor.currentMode]?.element !== editorElement) {
         return false;
     }
     if (editorElement.getAttribute("contenteditable") === "false") {
@@ -578,7 +587,7 @@ const runAxisMenuAction = (state: ITableHandleState, action: string) => {
         setTableAlign(table, type);
         setSelectionFocus(range);
         updateAlignMenuState(state.menu, type);
-        afterRenderEvent(state.vditor, {
+        execAfterRender(state.vditor, {
             enableAddUndoStack: true,
             enableHint: false,
             enableInput: true,
@@ -765,7 +774,7 @@ const bindAxisControl = (
                 moveTableColumn(state.vditor, table, moveFrom, moveTo);
             }
             state.vditor.undo.addToUndoStack(state.vditor);
-            afterRenderEvent(state.vditor, {
+            execAfterRender(state.vditor, {
                 enableAddUndoStack: false,
                 enableHint: false,
                 enableInput: true,
@@ -834,7 +843,7 @@ const bindAxisControl = (
 };
 
 export const initTableHandle = (vditor: IVditor, wrapper: HTMLElement, editorElement: HTMLElement) => {
-    if (handleMap.has(vditor)) {
+    if (handleMap.has(editorElement)) {
         return;
     }
 
@@ -878,7 +887,7 @@ export const initTableHandle = (vditor: IVditor, wrapper: HTMLElement, editorEle
         dragClientX: 0,
         dragClientY: 0,
     };
-    handleMap.set(vditor, state);
+    handleMap.set(editorElement, state);
 
     bindAxisControl(state, rowAxisControl, "row");
     bindAxisControl(state, colAxisControl, "col");
@@ -1000,21 +1009,24 @@ export const initTableHandle = (vditor: IVditor, wrapper: HTMLElement, editorEle
         wrapper.removeEventListener("mouseleave", onMouseLeave);
         restoreMenuContainer(state);
         root.remove();
-        handleMap.delete(vditor);
+        handleMap.delete(editorElement);
     };
 };
 
 export const updateTableHandle = (vditor: IVditor) => {
-    const state = handleMap.get(vditor);
+    const state = getTableHandleState(vditor);
     if (state) {
         scheduleRefresh(vditor, state);
     }
 };
 
 export const hideTableHandle = (vditor: IVditor) => {
-    const state = handleMap.get(vditor);
-    if (state) {
-        state.hoveredTable = null;
-        hideAll(state);
+    for (const mode of ["wysiwyg", "ir"] as const) {
+        const editorElement = vditor[mode]?.element;
+        const state = editorElement ? handleMap.get(editorElement) : undefined;
+        if (state) {
+            state.hoveredTable = null;
+            hideAll(state);
+        }
     }
 };

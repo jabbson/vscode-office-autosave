@@ -5,10 +5,13 @@ import {hasClosestByHeadings} from "../util/hasClosestByHeadings";
 import {getEditorRange, selectIsEditor} from "../util/selection";
 import {isInsideCodeBlockChrome} from "../codeBlock/codeMirrorManager";
 import {updateActiveHeadingMarker} from "../util/updateActiveHeadingMarker";
+import {updateBlockHandle} from "../wysiwyg/blockHandle";
+import {updateTableHandle} from "../wysiwyg/tableHandle";
 
 export const highlightToolbarIR = (vditor: IVditor) => {
     clearTimeout(vditor[vditor.currentMode].hlToolbarTimeoutId);
     vditor[vditor.currentMode].hlToolbarTimeoutId = 0;
+    let range: Range | undefined;
     try {
         if (vditor[vditor.currentMode].element.getAttribute("contenteditable") === "false") {
             return;
@@ -23,7 +26,7 @@ export const highlightToolbarIR = (vditor: IVditor) => {
         removeCurrentToolbar(vditor.toolbar.elements, Constants.EDIT_TOOLBARS);
         enableToolbar(vditor.toolbar.elements, Constants.EDIT_TOOLBARS);
 
-        const range = getEditorRange(vditor);
+        range = getEditorRange(vditor);
         let typeElement = range.startContainer as HTMLElement;
         if (range.startContainer.nodeType === 3) {
             typeElement = range.startContainer.parentElement;
@@ -101,5 +104,7 @@ export const highlightToolbarIR = (vditor: IVditor) => {
         }
     } finally {
         updateActiveHeadingMarker(vditor);
+        updateBlockHandle(vditor, range?.startContainer);
+        updateTableHandle(vditor);
     }
 };

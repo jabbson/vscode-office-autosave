@@ -1,6 +1,6 @@
 .vditor-block-handle {
   position: absolute;
-  z-index: 4;
+  z-index: 6;
   display: flex;
   align-items: flex-start;
   gap: 4px;
@@ -91,4 +91,10 @@
   .vditor-panel {
     display: none !important;
   }
+}
+
+// 块手柄悬停时隐藏标题 H1-H6 标记，避免 gutter 重叠挡点击
+:is(.vditor-wysiwyg, .vditor-ir) .vditor-reset > :is(h1, h2, h3, h4, h5, h6).vditor-block-handle-target:before {
+  visibility: hidden;
+  pointer-events: none;
 }
