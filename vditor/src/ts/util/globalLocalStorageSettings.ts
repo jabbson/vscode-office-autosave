@@ -137,14 +137,14 @@ export const PAGE_WIDTH_OPTIONS = [
 ] as const;
 
 export const CODE_BLOCK_MAX_HEIGHT_KEY = "codeBlockMaxHeight";
-export const CODE_BLOCK_MAX_HEIGHT_DEFAULT = "400px";
+export const CODE_BLOCK_MAX_HEIGHT_DEFAULT = "none";
 
 export const CODE_BLOCK_MAX_HEIGHT_OPTIONS = [
     { label: "300px", value: "300px" },
-    { label: "Default", value: "400px" },
+    { label: "Default", value: "none" },
+    { label: "400px", value: "400px" },
     { label: "600px", value: "600px" },
     { label: "800px", value: "800px" },
-    { label: "Unlimited", value: "none" },
 ] as const;
 
 export const IMAGE_MAX_WIDTH_KEY = "imageMaxWidth";
