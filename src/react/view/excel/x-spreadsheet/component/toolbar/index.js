@@ -60,7 +60,7 @@ function moreResize() {
   el.css('width', `${this.widthFn()}px`);
   const elBox = el.box();
 
-  let sumWidth = 160;
+  let sumWidth = 60;
   let sumWidth2 = 12;
   const list1 = [];
   const list2 = [];
