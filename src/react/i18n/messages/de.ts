@@ -35,6 +35,9 @@ export default {
         emptyFolder: 'Dieser Ordner ist leer',
         add: 'Hinzufügen',
         extract: 'Entpacken',
+        jarInfo: 'JAR-Info',
+        targetJavaVersion: 'Target Java Version',
+        mainClass: 'Main-Class',
     },
     svg: {
         loading: 'SVG wird geladen...',

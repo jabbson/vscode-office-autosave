@@ -1,7 +1,9 @@
 import { Output } from "@/common/Output";
 import { FileUtil } from "@/common/fileUtil";
+import { getFileSuffix } from '@/common/fileSuffix';
 import { Handler } from "@/common/handler";
 import { isZipPasswordError } from '@/service/compress/passwordUtils';
+import { parseJarInfo } from '@/service/compress/jarInfo';
 import { planExtractTarget, resolveContainedPath, revealExtractResult } from '@/service/compress/archiveUtils';
 import prettyBytes from "@/service/zip/pretty-bytes";
 import { ZipArchive } from "@/service/zip/zipArchive";
@@ -27,12 +29,27 @@ export async function handleZip(uri: Uri, handler: Handler) {
         const { archive, encrypted, encoding } = opened;
         filenameEncoding = encoding;
 
+        const suffix = getFileSuffix(uri.fsPath);
+        const extension = suffix.startsWith('.') ? suffix.slice(1) : suffix;
+
         handler.emit('encrypted', encrypted);
         handler.emit('encoding', encoding);
+        handler.emit('extension', extension);
         handler.emit('size', prettyBytes(data.length));
+
+        let jarInfo;
+        if (suffix === '.jar') {
+            try {
+                jarInfo = await parseJarInfo(archive, fileMap);
+            } catch (err) {
+                Output.debug(err);
+            }
+        }
+
         handler.emit('data', {
             files, folderMap,
-            fileName: basename(uri.fsPath)
+            fileName: basename(uri.fsPath),
+            jarInfo,
         });
 
         handler.on('changeEncoding', async (encoding) => {
@@ -44,7 +61,8 @@ export async function handleZip(uri: Uri, handler: Handler) {
             fileMap = parsed.fileMap;
             handler.emit('data', {
                 files, folderMap,
-                fileName: basename(uri.fsPath)
+                fileName: basename(uri.fsPath),
+                jarInfo: suffix === '.jar' ? await parseJarInfo(archive, fileMap).catch(() => undefined) : undefined,
             });
         }).on('openPath', async (payload) => {
             const entry = payload?.entry ?? payload;

@@ -35,6 +35,9 @@ export default {
         emptyFolder: 'このフォルダーは空です',
         add: '追加',
         extract: '展開',
+        jarInfo: 'JAR 情報',
+        targetJavaVersion: 'Target Java Version',
+        mainClass: 'Main-Class',
     },
     svg: {
         loading: 'SVG を読み込み中...',

@@ -35,6 +35,9 @@ export default {
         emptyFolder: '此資料夾為空',
         add: '新增',
         extract: '解壓縮',
+        jarInfo: 'JAR 資訊',
+        targetJavaVersion: 'Target Java Version',
+        mainClass: 'Main-Class',
     },
     svg: {
         loading: '正在載入 SVG...',

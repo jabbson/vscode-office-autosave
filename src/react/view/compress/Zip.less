@@ -53,6 +53,84 @@
     transition: width 0.2s ease, opacity 0.2s ease;
 }
 
+.zip-jar-panel {
+    flex-shrink: 0;
+    margin: 8px 8px 0;
+    border: 1px solid var(--zip-border);
+    border-radius: 8px;
+    background: var(--zip-bg);
+    overflow: hidden;
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--zip-shadow) 40%, transparent);
+}
+
+.zip-jar-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 7px 10px;
+    border: none;
+    border-bottom: 1px solid color-mix(in srgb, var(--zip-border) 70%, transparent);
+    background: var(--zip-sider-bg);
+    color: var(--zip-fg);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+
+    &:hover {
+        background: var(--zip-hover);
+    }
+}
+
+.zip-jar-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 10px 10px;
+}
+
+.zip-jar-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 11px;
+    line-height: 1.35;
+    min-width: 0;
+}
+
+.zip-jar-row-inline {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: nowrap;
+
+    .zip-jar-label {
+        flex-shrink: 0;
+    }
+
+    .zip-jar-value {
+        flex: 1;
+    }
+}
+
+.zip-jar-label {
+    color: var(--zip-muted);
+    font-weight: 600;
+}
+
+.zip-jar-value {
+    min-width: 0;
+    color: var(--zip-fg);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.zip-jar-value-mono {
+    font-family: var(--vscode-editor-font-family, ui-monospace, monospace);
+}
+
 .zip-sider-tree {
     flex: 1;
     min-height: 0;

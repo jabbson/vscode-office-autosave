@@ -35,6 +35,9 @@ export default {
         emptyFolder: '이 폴더는 비어 있습니다',
         add: '추가',
         extract: '압축 해제',
+        jarInfo: 'JAR 정보',
+        targetJavaVersion: 'Target Java Version',
+        mainClass: 'Main-Class',
     },
     svg: {
         loading: 'SVG 로딩 중...',

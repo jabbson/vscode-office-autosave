@@ -35,6 +35,9 @@ export default {
         emptyFolder: 'Эта папка пуста',
         add: 'Добавить',
         extract: 'Извлечь',
+        jarInfo: 'Информация JAR',
+        targetJavaVersion: 'Target Java Version',
+        mainClass: 'Main-Class',
     },
     svg: {
         loading: 'Загрузка SVG...',

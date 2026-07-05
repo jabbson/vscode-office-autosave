@@ -4,12 +4,13 @@ import { handler, loadDarkMode, applyDarkMode } from '../../util/vscode';
 import { $t } from '../../i18n/i18nConfig';
 import { useWindowSize } from '../../util/reactUtils';
 import FileItems from './components/FileItems';
+import JarInfoPanel from './components/JarInfoPanel';
 import PasswordModal from './components/PasswordModal';
 import Sponsor from '../components/Sponsor';
 import Sidebar from './components/Sidebar';
 import Toolbar from './components/Toolbar';
 import './Zip.less';
-import { CompressInfo, FileInfo } from './zipTypes';
+import { CompressInfo, FileInfo, JarInfo } from './zipTypes';
 
 type PasswordAction = { label: string; run: (password?: string) => void };
 
@@ -35,6 +36,7 @@ function ZipViewer() {
     const [passwordError, setPasswordError] = useState('')
     const [tableItems, setTableItems] = useState([] as FileInfo[])
     const [info, setInfo] = useState({ files: [] } as CompressInfo)
+    const [jarInfo, setJarInfo] = useState<JarInfo | null>(null)
     const [loaded, setLoaded] = useState(false)
     const [dark, setDark] = useState(loadDarkMode)
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -111,6 +113,9 @@ function ZipViewer() {
             setExtension(extension)
             setEncrypted(false)
             setArchivePassword(undefined)
+            if (extension !== 'jar') {
+                setJarInfo(null)
+            }
         })
         .on('encrypted', (value: boolean) => {
             setEncrypted(value)
@@ -121,6 +126,7 @@ function ZipViewer() {
         })
         .on('data', (info: CompressInfo) => {
             setInfo(info)
+            setJarInfo(info.jarInfo ?? null)
             setLoaded(true)
             setTableItems(info.files)
         })
@@ -153,6 +159,9 @@ function ZipViewer() {
             />
             <div className={`zip-body${showSidebar ? '' : ' zip-body--sidebar-hidden'}`}>
                 <aside className="zip-sider">
+                    {extension === 'jar' && jarInfo ? (
+                        <JarInfoPanel info={jarInfo} />
+                    ) : null}
                     <div className="zip-sider-tree">
                         <Sidebar
                             name={info.fileName}
