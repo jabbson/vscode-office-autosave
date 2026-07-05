@@ -275,6 +275,11 @@ const getWikilinkSourceElement = (wikilink: HTMLElement): HTMLElement | null => 
     return null;
 };
 
+export const focusWikilinkEditingRange = (range: Range, wikilink: HTMLElement, atEnd = true) => {
+    focusInlineNodeTextRange(range, wikilink, atEnd);
+    setSelectionFocus(range);
+};
+
 const focusInlineNodeTextRange = (range: Range, node: HTMLElement, atEnd: boolean) => {
     const source = getWikilinkSourceElement(node);
     const target = source || node;
@@ -415,6 +420,23 @@ export const setRangeByWbr = (element: HTMLElement, range: Range) => {
     const wbrElements = element.querySelectorAll("wbr");
     const wbrElement = wbrElements.length > 0 ? wbrElements[wbrElements.length - 1] as HTMLElement : null;
     if (!wbrElement) {
+        return;
+    }
+    const contentSpan = wbrElement.parentElement;
+    if (contentSpan && (contentSpan.getAttribute("data-newline") === "1"
+        || contentSpan.classList.contains("vditor-wikilink__source"))) {
+        if (wbrElement.previousSibling?.nodeType === Node.TEXT_NODE) {
+            range.setStart(wbrElement.previousSibling, wbrElement.previousSibling.textContent.length);
+        } else if (wbrElement.nextSibling?.nodeType === Node.TEXT_NODE) {
+            range.setStart(wbrElement.nextSibling, 0);
+        } else {
+            const zwsp = document.createTextNode(Constants.ZWSP);
+            contentSpan.insertBefore(zwsp, wbrElement);
+            range.setStart(zwsp, zwsp.length);
+        }
+        range.collapse(true);
+        wbrElement.remove();
+        setSelectionFocus(range);
         return;
     }
     if (!wbrElement.previousElementSibling) {

@@ -1,5 +1,14 @@
 import {hasClosestByClassName, hasTopClosestByClassName} from "../util/hasClosest";
-import {setSelectionFocus} from "../util/selection";
+import {focusWikilinkEditingRange, setSelectionFocus} from "../util/selection";
+
+const focusExpandedWikilink = (nodeElement: HTMLElement, range: Range) => {
+    const dataType = nodeElement.getAttribute("data-type");
+    if (dataType !== "wikilink" && dataType !== "wikilink-embed") {
+        return false;
+    }
+    focusWikilinkEditingRange(range, nodeElement);
+    return true;
+};
 
 const nextIsNode = (range: Range) => {
     const startContainer = range.startContainer;
@@ -66,7 +75,10 @@ export const expandMarker = (range: Range, root: HTMLElement) => {
         nodeElement.classList.add("vditor-ir__node--expand");
         nodeElement.classList.remove("vditor-ir__node--hidden");
         // https://github.com/Vanessa219/vditor/issues/615 safari中光标位置跳动
-        setSelectionFocus(range);
+        if (!focusExpandedWikilink(nodeElement, range)) {
+            setSelectionFocus(range);
+        }
+        return;
     }
 
     const nextNode = nextIsNode(range);
@@ -76,6 +88,7 @@ export const expandMarker = (range: Range, root: HTMLElement) => {
         }
         nextNode.classList.add("vditor-ir__node--expand");
         nextNode.classList.remove("vditor-ir__node--hidden");
+        focusExpandedWikilink(nextNode, range);
         return;
     }
 
@@ -86,6 +99,7 @@ export const expandMarker = (range: Range, root: HTMLElement) => {
         }
         previousNode.classList.add("vditor-ir__node--expand");
         previousNode.classList.remove("vditor-ir__node--hidden");
+        focusExpandedWikilink(previousNode, range);
         return;
     }
 };
