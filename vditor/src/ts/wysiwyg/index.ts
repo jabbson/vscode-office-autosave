@@ -20,6 +20,7 @@ import {
 import { hasClosestByHeadings } from "../util/hasClosestByHeadings";
 import { isDeleteInput } from "../util/instantHistory";
 import { flushBufferedHistory, trackHistoryInputFromEvent } from "../util/historyInputBuffer";
+import { canUsePlainTextFastPath } from "../util/plainTextFastPath";
 import {
     preventImpreciseLineStartClick,
     getCursorPosition,
@@ -346,6 +347,15 @@ class WYSIWYG {
                 || endSpace || isHeadingMD(blockElement.innerHTML) ||
                 (isHrMD(blockElement.innerHTML) && blockElement.previousElementSibling)) {
                 fireContentInput(vditor, getMarkdown(vditor));
+                if (shouldFlushHistory) {
+                    flushBufferedHistory(vditor);
+                } else {
+                    afterRenderEvent(vditor);
+                }
+                return;
+            }
+
+            if (canUsePlainTextFastPath(vditor, event)) {
                 if (shouldFlushHistory) {
                     flushBufferedHistory(vditor);
                 } else {
