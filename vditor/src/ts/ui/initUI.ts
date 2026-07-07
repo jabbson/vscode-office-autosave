@@ -11,6 +11,7 @@ import { resolveCodeMirrorTheme, setCodeTheme } from "./setCodeTheme";
 import { setTheme } from "./setTheme";
 import { applyEditorSettings } from "../util/globalLocalStorageSettings";
 import { initSaveToolbarState } from "../util/saveToolbarState";
+import { configureHistoryDeferByDocumentLength } from "../util/historySchedule";
 import { bindTypewriterMode } from "./typewriterMode";
 
 export const initUI = (vditor: IVditor) => {
@@ -84,6 +85,7 @@ export const initUI = (vditor: IVditor) => {
   let mode = vditor.options.mode;
   if (!["wysiwyg", "ir"].includes(mode)) mode = "wysiwyg";
   setEditMode(vditor, mode, initValue);
+  configureHistoryDeferByDocumentLength(vditor, initValue.length);
   initSaveToolbarState(vditor, initValue);
 
   document.execCommand("DefaultParagraphSeparator", false, "p");

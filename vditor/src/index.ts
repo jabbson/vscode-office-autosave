@@ -51,6 +51,7 @@ import {
 import { afterRenderEvent } from "./ts/wysiwyg/afterRenderEvent";
 import { renderToc } from "./ts/util/toc";
 import { scrollToBlock as scrollToBlockUtil } from "./ts/util/scrollToBlock";
+import { configureHistoryDeferByDocumentLength } from "./ts/util/historySchedule";
 import { isDocumentDirty, markDocumentSaved, updateSaveToolbarState } from "./ts/util/saveToolbarState";
 import {
     applyEditorSettings,
@@ -386,6 +387,7 @@ class Vditor {
         }
         if (clearStack) {
             this.clearStack();
+            configureHistoryDeferByDocumentLength(this.vditor, markdown.length);
         }
         updateSaveToolbarState(this.vditor);
     }

@@ -653,6 +653,10 @@ interface IVditor {
     originalInnerHTML: string;
     lute: Lute | undefined;
     currentMode: IEditMode;
+    /** 首次加载时的 Markdown 字符数，用于计算 history debounce 放行倍数 */
+    documentInitialLength?: number;
+    /** recordHistory 相对 undoDelay 的放行倍数；-1 表示超大文档，仅 debounce 不强制 flush */
+    historyMaxWaitFactor?: number;
     outline: {
         element: HTMLElement,
         init(vditor: IVditor): void,
