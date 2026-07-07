@@ -3,14 +3,96 @@ import type { GitRemoteDetail, RemoteActionPayload, RemoteActionResult, RemoteWe
 
 export type { RemoteWebUrl };
 
+function stripGitSuffix(path: string): string {
+    return path.replace(/\.git$/, '');
+}
+
+function buildHttpsUrl(host: string, path: string): string {
+    const normalizedPath = stripGitSuffix(path.replace(/^\/+/, ''));
+    return normalizedPath ? `https://${host}/${normalizedPath}` : `https://${host}`;
+}
+
+function convertScpStyleSshUrl(url: string): string | null {
+    const atIndex = url.indexOf('@');
+    if (atIndex === -1) {
+        return null;
+    }
+    const afterAt = url.slice(atIndex + 1);
+    if (afterAt.startsWith('[')) {
+        const closeBracket = afterAt.indexOf(']');
+        if (closeBracket === -1) {
+            return null;
+        }
+        const colonIndex = afterAt.indexOf(':', closeBracket);
+        if (colonIndex === -1) {
+            return null;
+        }
+        const host = afterAt.slice(0, closeBracket + 1);
+        const path = afterAt.slice(colonIndex + 1);
+        return buildHttpsUrl(host, path);
+    }
+    const colonIndex = afterAt.indexOf(':');
+    if (colonIndex === -1) {
+        return null;
+    }
+    const host = afterAt.slice(0, colonIndex);
+    const path = afterAt.slice(colonIndex + 1);
+    return buildHttpsUrl(host, path);
+}
+
+function convertSshProtocolUrl(url: string): string | null {
+    try {
+        const parsed = new URL(url);
+        if (parsed.protocol !== 'ssh:') {
+            return null;
+        }
+        const host = parsed.hostname;
+        if (!host) {
+            return null;
+        }
+        let path = decodeURIComponent(parsed.pathname);
+        path = path.replace(/^\/~?\/?/, '');
+        return buildHttpsUrl(host, path);
+    } catch {
+        return null;
+    }
+}
+
+function convertGitProtocolUrl(url: string): string | null {
+    try {
+        const parsed = new URL(url);
+        if (parsed.protocol !== 'git:') {
+            return null;
+        }
+        const host = parsed.hostname;
+        if (!host) {
+            return null;
+        }
+        return buildHttpsUrl(host, parsed.pathname);
+    } catch {
+        return null;
+    }
+}
+
 function convertRemoteUrlToWebUrl(url: string): string | null {
     const trimmed = url.trim();
-    if (!trimmed) return null;
-    if (trimmed.startsWith('git@')) {
-        return trimmed.replace(':', '/').replace('git@', 'https://').replace(/\.git$/, '');
+    if (!trimmed) {
+        return null;
     }
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-        return trimmed.replace(/\.git$/, '');
+        return stripGitSuffix(trimmed);
+    }
+    if (trimmed.startsWith('git+ssh://')) {
+        return convertSshProtocolUrl(`ssh://${trimmed.slice('git+ssh://'.length)}`);
+    }
+    if (trimmed.startsWith('ssh://')) {
+        return convertSshProtocolUrl(trimmed);
+    }
+    if (trimmed.includes('@') && !trimmed.includes('://')) {
+        return convertScpStyleSshUrl(trimmed);
+    }
+    if (trimmed.startsWith('git://')) {
+        return convertGitProtocolUrl(trimmed);
     }
     return null;
 }
