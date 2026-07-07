@@ -189,6 +189,11 @@ function buildAdaptiveGitHistoryTheme(): GitHistoryTheme {
         '--git-graph-toolbar-btn-remote': getVscodeThemeColor('--vscode-gitDecoration-modifiedResourceForeground', '#e2c08d'),
         '--git-graph-toolbar-btn-sync': getVscodeThemeColor('--vscode-terminal-ansiCyan', '#0598bc'),
         '--git-graph-reset-option-accent': getVscodeThemeColor('--vscode-terminal-ansiYellow', '#d7ba7d'),
+        // Used by custom-styled checkboxes/buttons inside dialogs.
+        // If undefined, checked checkboxes can look "hollow" (transparent) because we use `appearance: none`.
+        '--git-graph-primary-btn-bg': getVscodeThemeColor('--vscode-button-background', '#0e639c'),
+        '--git-graph-primary-btn-bg-hover': getVscodeThemeColor('--vscode-button-hoverBackground', '#1177bb'),
+        '--git-graph-primary-btn-fg': getVscodeThemeColor('--vscode-button-foreground', '#ffffff'),
     };
     cssVars['--git-graph-detail-text'] = cssVars['--git-graph-fg'];
     cssVars['--git-graph-emphasis-fg'] = cssVars['--git-graph-accent'];

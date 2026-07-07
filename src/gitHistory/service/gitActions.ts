@@ -100,6 +100,29 @@ function convertRemoteUrlToWebUrl(url: string): string | null {
 export class GitActions {
     constructor(private readonly executor: GitExecutor) { }
 
+    async getCurrentBranch(repo: string): Promise<string | null> {
+        try {
+            const branch = await this.executor.spawn(
+                ['rev-parse', '--abbrev-ref', 'HEAD'],
+                repo,
+                (stdout) => stdout.trim(),
+            );
+            return branch || null;
+        } catch {
+            return null;
+        }
+    }
+
+    async listRemotes(repo: string): Promise<string[]> {
+        try {
+            return await this.executor.spawn(['remote'], repo, (stdout) =>
+                stdout.split(/\r\n|\r|\n/).map((line) => line.trim()).filter(Boolean)
+            );
+        } catch {
+            return [];
+        }
+    }
+
     async fetchFromRemotes(repo: string): Promise<string | null> {
         try {
             await this.executor.spawn(['fetch', '--all', '--prune'], repo, () => null);

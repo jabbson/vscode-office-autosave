@@ -14,7 +14,6 @@ interface ToolbarProps {
     fetching: boolean;
     pulling: boolean;
     pushing: boolean;
-    syncing: boolean;
     canPull: boolean;
     canPush: boolean;
     hasRemoteUrl: boolean;
@@ -45,7 +44,7 @@ function repoLabel(path: string): string {
 
 export default function Toolbar({
     repos, repo, branches, selectedBranch, authors, selectedAuthor,
-    searchValue, refreshing, fetching, pulling, pushing, syncing, canPull, canPush, hasRemoteUrl,
+    searchValue, refreshing, fetching, pulling, pushing, canPull, canPush, hasRemoteUrl,
     findActive, settingsActive, splitView, adaptiveColorMode,
     onRepoChange, onBranchChange, onAuthorChange,
     onSearchChange, onSearch,
@@ -114,19 +113,19 @@ export default function Toolbar({
                 <FetchIcon
                     title="Fetch from remote(s)"
                     onClick={onFetch}
-                    disabled={fetching || pushing || syncing || pulling || !repo}
+                    disabled={fetching || pushing || pulling || !repo}
                     className={fetching ? 'running' : undefined}
                 />
                 <PullIcon
                     title="Pull current branch from remote"
                     onClick={onPull}
-                    disabled={pulling || pushing || syncing || fetching || !canPull}
+                    disabled={pulling || pushing || fetching || !canPull}
                     className={pulling ? 'running' : undefined}
                 />
                 <PushIcon
                     title="Push current branch to remote"
                     onClick={onPush}
-                    disabled={pushing || syncing || fetching || pulling || !canPush}
+                    disabled={pushing || fetching || pulling || !canPush}
                     className={pushing ? 'running' : undefined}
                 />
                 <RemoteIcon

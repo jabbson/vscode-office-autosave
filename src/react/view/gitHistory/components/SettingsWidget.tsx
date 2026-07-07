@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GitPullDefaults, FileHistorySplitLayout } from '../util/gitHistoryState';
 import type { GitRemoteDetail } from '../types';
+import { getConfigs } from '../../../util/vscodeConfig';
+import { handler } from '../../../util/vscode';
 
 interface SettingsWidgetProps {
     open: boolean;
@@ -15,12 +17,9 @@ interface SettingsWidgetProps {
     onAddRemote: () => void;
     onEditRemote: (name: string) => void;
     onDeleteRemote: (name: string) => void;
-    canQuickSync: boolean;
-    syncing: boolean;
     fetching: boolean;
     pulling: boolean;
     pushing: boolean;
-    onQuickSync: () => void;
 }
 
 async function copyText(text: string): Promise<void> {
@@ -47,9 +46,13 @@ async function copyText(text: string): Promise<void> {
 export default function SettingsWidget({
     open, repo, remotes, loading, pullDefaults, fileHistorySplitLayout, onClose,
     onPullDefaultsChange, onFileHistorySplitLayoutChange, onAddRemote, onEditRemote, onDeleteRemote,
-    canQuickSync, syncing, fetching, pulling, pushing, onQuickSync,
+    fetching, pulling, pushing,
 }: SettingsWidgetProps) {
     const [copiedRemoteName, setCopiedRemoteName] = useState<string | null>(null);
+    const [showQuickSyncButton, setShowQuickSyncButton] = useState<boolean>(() => {
+        const initial = Boolean(getConfigs()?.gitHistorySettings?.quickSyncButton);
+        return initial;
+    });
     const copyResetTimerRef = useRef<number | null>(null);
 
     useEffect(() => {
@@ -92,42 +95,10 @@ export default function SettingsWidget({
             <div className="git-graph-settings-body">
                 <section className="git-graph-settings-group">
                     <div className="git-graph-settings-group-header">
-                        <h2>Extension Settings</h2>
+                        <h2>Repository Settings</h2>
                         <button type="button" className="git-graph-icon-btn" title="Close" onClick={onClose}>
                             <span className="codicon codicon-close" aria-hidden />
                         </button>
-                    </div>
-                    <div className="git-graph-settings-group-content">
-                        <div className="git-graph-settings-section">
-                            <h3>File History Split</h3>
-                            <p className="git-graph-settings-hint">
-                                Editor layout when opening file Git history beside the current file.
-                            </p>
-                            <label className="git-graph-settings-radio">
-                                <input
-                                    type="radio"
-                                    name="file-history-split"
-                                    checked={fileHistorySplitLayout === 'vertical'}
-                                    onChange={() => onFileHistorySplitLayoutChange('vertical')}
-                                />
-                                <span>Vertical (stacked)</span>
-                            </label>
-                            <label className="git-graph-settings-radio">
-                                <input
-                                    type="radio"
-                                    name="file-history-split"
-                                    checked={fileHistorySplitLayout === 'horizontal'}
-                                    onChange={() => onFileHistorySplitLayoutChange('horizontal')}
-                                />
-                                <span>Horizontal (side by side)</span>
-                            </label>
-                        </div>
-                    </div>
-                </section>
-
-                <section className="git-graph-settings-group">
-                    <div className="git-graph-settings-group-header">
-                        <h2>Repository Settings</h2>
                     </div>
                     <div className="git-graph-settings-group-content">
                         <div className="git-graph-settings-section">
@@ -196,25 +167,6 @@ export default function SettingsWidget({
                         </div>
 
                         <div className="git-graph-settings-section">
-                            <h3>Quick Sync</h3>
-                            <p className="git-graph-settings-hint">
-                                Commit uncommitted changes, then pull and push the current branch for{' '}
-                                <strong>{repoLabel}</strong>. Uses the default pull behaviour below.
-                            </p>
-                            <div className="git-graph-settings-section-actions">
-                                <button
-                                    type="button"
-                                    className={`git-graph-settings-btn sync${syncing ? ' running' : ''}`}
-                                    onClick={onQuickSync}
-                                    disabled={!canQuickSync || syncing || fetching || pulling || pushing}
-                                >
-                                    <span className="codicon codicon-sync" aria-hidden />
-                                    {syncing ? 'Syncing...' : 'Quick Sync'}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="git-graph-settings-section">
                             <h3>Default Pull Behaviour</h3>
                             <p className="git-graph-settings-hint">
                                 Applied when pulling from the context menu for <strong>{repoLabel}</strong>.
@@ -240,6 +192,57 @@ export default function SettingsWidget({
                                     }}
                                 />
                                 <span>Squash (--squash)</span>
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <section className="git-graph-settings-group">
+                    <div className="git-graph-settings-group-header">
+                        <h2>Extension Settings</h2>
+                    </div>
+                    <div className="git-graph-settings-group-content">
+                        <div className="git-graph-settings-section">
+                            <h3>File History Split</h3>
+                            <p className="git-graph-settings-hint">
+                                Editor layout when opening file Git history beside the current file.
+                            </p>
+                            <label className="git-graph-settings-radio">
+                                <input
+                                    type="radio"
+                                    name="file-history-split"
+                                    checked={fileHistorySplitLayout === 'vertical'}
+                                    onChange={() => onFileHistorySplitLayoutChange('vertical')}
+                                />
+                                <span>Vertical (stacked)</span>
+                            </label>
+                            <label className="git-graph-settings-radio">
+                                <input
+                                    type="radio"
+                                    name="file-history-split"
+                                    checked={fileHistorySplitLayout === 'horizontal'}
+                                    onChange={() => onFileHistorySplitLayoutChange('horizontal')}
+                                />
+                                <span>Horizontal (side by side)</span>
+                            </label>
+                        </div>
+
+                        <div className="git-graph-settings-section">
+                            <h3>Source Control</h3>
+                            <p className="git-graph-settings-hint">
+                                Show the Quick Sync button in the Source Control (Git) title toolbar.
+                            </p>
+                            <label className="git-graph-settings-checkbox">
+                                <input
+                                    type="checkbox"
+                                    checked={showQuickSyncButton}
+                                    onChange={(e) => {
+                                        const next = e.target.checked;
+                                        setShowQuickSyncButton(next);
+                                        handler.emit('updateConfig', { key: 'gitHistory.quickSyncButton', value: next });
+                                    }}
+                                />
+                                <span>Show Quick Sync button</span>
                             </label>
                         </div>
                     </div>

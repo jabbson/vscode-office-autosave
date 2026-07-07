@@ -50,9 +50,11 @@ export function buildCommitContextMenu(commit: GitCommit, ctx: MenuContext): Con
     const items: ContextMenuItem[] = [
         { id: 'copyHash', label: $t('git.copyCommitHash') },
         { id: 'copyMessage', label: $t('git.copyCommitMessage') },
-        { id: 'reset', label: $t('git.resetBranch') },
-        { id: 'createBranch', label: $t('git.createBranch') },
-        { id: 'addTag', label: $t('git.addTag') },
+        ...sep([
+            { id: 'reset', label: $t('git.resetBranch') },
+            { id: 'createBranch', label: $t('git.createBranch') },
+            { id: 'addTag', label: $t('git.addTag') },
+        ]),
         ...sep([
             { id: 'checkout', label: 'Checkout' },
             { id: 'cherryPick', label: 'Cherry Pick' },

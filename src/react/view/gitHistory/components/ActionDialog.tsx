@@ -505,7 +505,7 @@ export default function ActionDialog({
                     formValues,
                     setFormValues,
                     false,
-                    'git-graph-anchored-dialog-checkbox-list--styled',
+                    'git-graph-anchored-dialog-checkbox-list--styled git-graph-anchored-dialog-checkbox-list--merge',
                 );
             } else if (step.variant === 'cherryPick') {
                 message = (

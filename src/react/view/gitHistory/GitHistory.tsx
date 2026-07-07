@@ -150,7 +150,6 @@ function GitHistoryView({
     const [fetching, setFetching] = useState(false);
     const [pulling, setPulling] = useState(false);
     const [pushing, setPushing] = useState(false);
-    const [syncing, setSyncing] = useState(false);
     const [hasRemoteUrl, setHasRemoteUrl] = useState(false);
     const [remoteWebUrls, setRemoteWebUrls] = useState<{ name: string; url: string }[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -771,16 +770,6 @@ function GitHistoryView({
                     loadRepositoryRef.current(repoRef.current);
                 }
             })
-            .on('quickSync', (payload: { error: string | null }) => {
-                setSyncing(false);
-                if (payload.error) {
-                    setError(payload.error);
-                    return;
-                }
-                if (repoRef.current) {
-                    loadRepositoryRef.current(repoRef.current);
-                }
-            })
             .on('repoConfig', (payload: { remotes: GitRemoteDetail[] }) => {
                 setConfigRemotes(payload.remotes);
                 setConfigLoading(false);
@@ -1050,54 +1039,6 @@ function GitHistoryView({
         });
     };
 
-    const runQuickSync = (remote: string, commitMessage: string) => {
-        if (!repo || !branchHead) {
-            return;
-        }
-        setSyncing(true);
-        setError(null);
-        handler.emit('quickSync', {
-            repo,
-            branch: branchHead,
-            remote,
-            commitMessage,
-            noFastForward: pullDefaults.noFastForward,
-            squash: pullDefaults.squash,
-        });
-    };
-
-    const handleQuickSync = () => {
-        if (!repo || !branchHead) {
-            return;
-        }
-        if (branchHead.startsWith('(HEAD detached')) {
-            setError($t('git.detachedHead'));
-            return;
-        }
-        const hasUncommitted = commits[0]?.hash === UNCOMMITTED;
-        const hasRemote = remotes.length > 0;
-        setToolbarPromptKind('quickSyncConfirm');
-        setToolbarPrompt({
-            kind: 'form',
-            id: 'quickSync',
-            title: 'Quick Sync',
-            message: hasUncommitted
-                ? hasRemote
-                    ? 'Uncommitted changes will be committed, then the branch will be pulled and pushed.'
-                    : 'Uncommitted changes will be committed locally.'
-                : `Pull and push "${branchHead}" to remote.`,
-            submitLabel: 'Sync',
-            fields: hasUncommitted
-                ? [{
-                    type: 'text',
-                    id: 'commitMessage',
-                    label: 'Commit message',
-                    defaultValue: QUICK_SYNC_DEFAULT_MESSAGE(),
-                }]
-                : [],
-        });
-    };
-
     const openRemoteForRepo = useCallback((
         targetRepo: string,
         urls: ReadonlyArray<{ name: string; url: string }>,
@@ -1173,26 +1114,6 @@ function GitHistoryView({
     const handleToolbarPromptSubmit = (value: PromptSubmitValue) => {
         const kind = toolbarPromptKind;
         const promptId = toolbarPrompt?.id;
-        if (kind === 'quickSyncConfirm') {
-            const formValues = typeof value === 'string' ? null : value;
-            const commitMessage = formValues?.commitMessage?.trim() || QUICK_SYNC_DEFAULT_MESSAGE();
-            pendingQuickSyncCommitMessageRef.current = commitMessage;
-            if (remotes.length > 1) {
-                setToolbarPrompt({
-                    kind: 'pick',
-                    id: 'remote',
-                    title: 'Quick Sync',
-                    message: `Sync "${branchHead}" with remote`,
-                    options: remotes.map((remote) => ({ value: remote, label: remote })),
-                });
-                setToolbarPromptKind('quickSync');
-                return;
-            }
-            setToolbarPrompt(null);
-            setToolbarPromptKind(null);
-            runQuickSync(remotes[0], commitMessage);
-            return;
-        }
         if (kind === 'openRemote' && promptId === 'repo' && typeof value === 'string') {
             closeToolbarPrompt(false);
             if (value === repoRef.current) {
@@ -1204,13 +1125,6 @@ function GitHistoryView({
             return;
         }
         closeToolbarPrompt();
-        if (kind === 'quickSync') {
-            if (typeof value !== 'string') {
-                return;
-            }
-            runQuickSync(value, pendingQuickSyncCommitMessageRef.current);
-            return;
-        }
         if (kind === 'pull' && typeof value === 'string') {
             runPull(value);
             return;
@@ -1576,7 +1490,6 @@ function GitHistoryView({
                 fetching={fetching}
                 pulling={pulling}
                 pushing={pushing}
-                syncing={syncing}
                 canPull={Boolean(repo && branchHead && !branchHead.startsWith('(HEAD detached') && remotes.length > 0)}
                 canPush={Boolean(repo && branchHead && !branchHead.startsWith('(HEAD detached') && remotes.length > 0)}
                 hasRemoteUrl={hasRemoteUrl || repos.length > 1}
@@ -1673,12 +1586,9 @@ function GitHistoryView({
                     onAddRemote={() => handleRemoteAction('add')}
                     onEditRemote={(name) => handleRemoteAction('edit', name)}
                     onDeleteRemote={(name) => handleRemoteAction('delete', name)}
-                    canQuickSync={Boolean(repo && branchHead && !branchHead.startsWith('(HEAD detached'))}
-                    syncing={syncing}
                     fetching={fetching}
                     pulling={pulling}
                     pushing={pushing}
-                    onQuickSync={handleQuickSync}
                 />
             </div>
             {actionPromptStep && (

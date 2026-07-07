@@ -242,6 +242,12 @@
 				"title": "Git: View File History",
 				"icon": "$(git-commit)",
 				"enablement": "!office.extensionHost.web"
+			},
+			{
+				"command": "office.gitHistory.quickSync",
+				"title": "Git: Quick Sync",
+				"icon": "$(sync)",
+				"enablement": "!office.extensionHost.web"
 			}
 		],
 		"keybindings": [
@@ -275,6 +281,11 @@
 					"command": "office.gitHistory.view",
 					"group": "navigation",
 					"when": "scmProvider == git && !office.extensionHost.web"
+				},
+				{
+					"command": "office.gitHistory.quickSync",
+					"group": "navigation",
+					"when": "scmProvider == git && config.vscode-office.gitHistory.quickSyncButton && !office.extensionHost.web"
 				}
 			],
 			"scm/repository": [
@@ -566,6 +577,17 @@
 			}
 		],
 		"configuration": [
+			{
+				"title": "Git History",
+				"order": 98,
+				"properties": {
+					"vscode-office.gitHistory.quickSyncButton": {
+						"type": "boolean",
+						"default": false,
+						"description": "Show Quick Sync button in Source Control (Git) title toolbar."
+					}
+				}
+			},
 			{
 				"title": "Markdown",
 				"order": 1,
