@@ -22,7 +22,6 @@ let toolbar = [
   'indent',
   '|',
   'quote',
-  'line',
   'code',
   'inline-code',
   '|',

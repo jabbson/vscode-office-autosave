@@ -35,6 +35,9 @@ export default {
         emptyFolder: 'Dieser Ordner ist leer',
         add: 'Hinzufügen',
         extract: 'Entpacken',
+        jarInfo: 'JAR-Info',
+        targetJavaVersion: 'Target Java Version',
+        mainClass: 'Main-Class',
     },
     svg: {
         loading: 'SVG wird geladen...',
@@ -115,6 +118,7 @@ export default {
         renameBranch: 'Branch umbenennen',
         merge: 'Zusammenführen',
         mergeIntoCurrent: 'In aktuellen Branch zusammenführen',
+        mergeIntoCurrentWithSource: '{source} in aktuellen Branch zusammenführen',
         copyCommitHash: 'Commit-Hash kopieren',
         copyCommitMessage: 'Commit-Nachricht kopieren',
         resetBranch: 'Branch zurücksetzen',

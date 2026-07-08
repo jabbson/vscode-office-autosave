@@ -1,7 +1,8 @@
 import { MoonOutlined, SunOutlined } from "@ant-design/icons";
 import { App, Button, Modal, Radio, Spin } from "antd";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { handler, loadDarkMode, applyDarkMode } from "../../util/vscode.ts";
+import { handler, vscodeApi } from "../../util/vscode.ts";
+import { isVscodeEditorDark, observeVscodeThemeChange } from "../../util/vscodeTheme.ts";
 import { loadOfficeBuffer } from "../../util/loadOfficeContent.ts";
 import SponsorBar from '../components/SponsorBar';
 import './Excel.less';
@@ -10,11 +11,47 @@ import { detectCsvEncoding } from "./csvEncoding.ts";
 import { loadSheets } from "./excel_reader.ts";
 import { export_xlsx, exportSaveAs, buildFormattingSnapshot, hasFormattingChanged } from "./excel_writer.ts";
 import Spreadsheet from './x-spreadsheet/index';
-import FindReplacePanel from './FindReplacePanel';
+import FindReplacePanel, { type FindReplacePanelHandle } from './FindReplacePanel';
 import { parseSpreadsheetLink } from './excel_hyperlink';
 import { initExcelLocale, t } from './excel_i18n';
 
 initExcelLocale();
+
+type ExcelColorMode = 'adaptive' | 'light';
+
+const EXCEL_COLOR_MODE_KEY = 'office-excel-color-mode';
+const LEGACY_DARK_MODE_KEY = 'office-dark-mode';
+
+function loadExcelColorMode(): ExcelColorMode {
+    const state = vscodeApi?.getState?.() as { excelColorMode?: ExcelColorMode } | undefined;
+    if (state?.excelColorMode === 'light' || state?.excelColorMode === 'adaptive') {
+        return state.excelColorMode;
+    }
+    try {
+        const saved = localStorage.getItem(EXCEL_COLOR_MODE_KEY);
+        if (saved === 'light' || saved === 'adaptive') {
+            return saved;
+        }
+        const legacy = localStorage.getItem(LEGACY_DARK_MODE_KEY);
+        if (legacy === '1') {
+            return 'adaptive';
+        }
+        if (legacy === '0') {
+            return 'light';
+        }
+    } catch { }
+    return 'adaptive';
+}
+
+function saveExcelColorMode(mode: ExcelColorMode) {
+    try {
+        localStorage.setItem(EXCEL_COLOR_MODE_KEY, mode);
+    } catch { }
+    if (vscodeApi?.setState) {
+        const prev = (vscodeApi.getState?.() ?? {}) as Record<string, unknown>;
+        vscodeApi.setState({ ...prev, excelColorMode: mode });
+    }
+}
 
 type ExcelViewState = { ri: number; ci: number; sheetIndex: number };
 
@@ -61,9 +98,12 @@ function restoreViewState(spreadSheet: Spreadsheet, saved: ExcelViewState) {
 function ExcelViewer() {
     const { message, modal } = App.useApp();
     const [loading, setLoading] = useState(true)
-    const [dark, setDark] = useState(loadDarkMode)
+    const [colorMode, setColorMode] = useState(loadExcelColorMode)
+    const [vscodeDark, setVscodeDark] = useState(isVscodeEditorDark)
     const [readOnly, setReadOnly] = useState(false)
     const [findPanel, setFindPanel] = useState<'find' | 'replace' | null>(null)
+    const findPanelRef = useRef<'find' | 'replace' | null>(null)
+    const findReplacePanelRef = useRef<FindReplacePanelHandle>(null)
     const [loadError, setLoadError] = useState<string | null>(null)
     const [saveAsVisible, setSaveAsVisible] = useState(false)
     const [saveAsFormat, setSaveAsFormat] = useState('xlsx')
@@ -77,20 +117,37 @@ function ExcelViewer() {
     const initialFormattingRef = useRef('')
 
     useEffect(() => {
-        document.body.classList.toggle('office-dark', dark)
-    }, [dark])
+        findPanelRef.current = findPanel;
+    }, [findPanel]);
 
-    const toggleDark = () => {
-        setDark(prev => {
-            const next = !prev
-            applyDarkMode(next)
-            return next
+    const adaptiveColorMode = colorMode === 'adaptive';
+    const themedDark = adaptiveColorMode && vscodeDark;
+
+    useEffect(() => {
+        if (!adaptiveColorMode) {
+            return;
+        }
+        return observeVscodeThemeChange(() => setVscodeDark(isVscodeEditorDark()));
+    }, [adaptiveColorMode]);
+
+    useEffect(() => {
+        document.body.classList.toggle('office-dark', themedDark)
+    }, [themedDark])
+
+    const toggleColorMode = () => {
+        setColorMode(prev => {
+            const next: ExcelColorMode = prev === 'adaptive' ? 'light' : 'adaptive';
+            saveExcelColorMode(next);
+            if (next === 'adaptive') {
+                setVscodeDark(isVscodeEditorDark());
+            }
+            return next;
         })
     }
 
     useEffect(() => {
         spreadSheetRef.current?.reRender()
-    }, [dark])
+    }, [themedDark])
 
     const handleSaveAs = useCallback(() => {
         setSaveAsVisible(true);
@@ -209,7 +266,14 @@ function ExcelViewer() {
             }
             if ((e.ctrlKey || e.metaKey) && e.code === 'KeyF') {
                 e.preventDefault();
-                setFindPanel('find');
+                if (findPanelRef.current) {
+                    if (findPanelRef.current !== 'find') {
+                        setFindPanel('find');
+                    }
+                    findReplacePanelRef.current?.focusFindInput(true);
+                } else {
+                    setFindPanel('find');
+                }
                 return;
             }
             if ((e.ctrlKey || e.metaKey) && e.code === 'KeyH') {
@@ -251,7 +315,16 @@ function ExcelViewer() {
                 spreadSheet.on('save', () => void handleSave());
             }
             spreadSheet.on('save-as', () => { void handleSaveAs(); });
-            spreadSheet.on('find', () => { setFindPanel('find'); });
+            spreadSheet.on('find', () => {
+                if (findPanelRef.current) {
+                    if (findPanelRef.current !== 'find') {
+                        setFindPanel('find');
+                    }
+                    findReplacePanelRef.current?.focusFindInput(true);
+                } else {
+                    setFindPanel('find');
+                }
+            });
             const persistView = () => {
                 saveViewState(documentCacheIdRef.current, spreadSheet.getSelection());
             };
@@ -348,6 +421,7 @@ function ExcelViewer() {
             )}
             {findPanel && !loading && !loadError && (
                 <FindReplacePanel
+                    ref={findReplacePanelRef}
                     spreadSheet={activeSpreadsheet}
                     mode={findPanel}
                     onClose={() => setFindPanel(null)}
@@ -403,10 +477,10 @@ function ExcelViewer() {
                 <button
                     type="button"
                     className="dark-mode-toggle"
-                    title={dark ? t('viewer.switchToLightMode') : t('viewer.switchToDarkMode')}
-                    onClick={toggleDark}
+                    title={adaptiveColorMode ? t('viewer.switchToLightMode') : t('viewer.switchToDarkMode')}
+                    onClick={toggleColorMode}
                 >
-                    {dark ? <SunOutlined /> : <MoonOutlined />}
+                    {adaptiveColorMode ? <SunOutlined /> : <MoonOutlined />}
                 </button>
                 {!loading && <SponsorBar placement="right" />}
             </div>

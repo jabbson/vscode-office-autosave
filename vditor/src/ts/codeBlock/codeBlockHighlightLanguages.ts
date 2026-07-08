@@ -3,6 +3,7 @@ import { mermaid } from "codemirror-lang-mermaid";
 import { latex } from "codemirror-lang-latex";
 
 import { buildCodeMirrorLanguageMap } from "./codeBlockLanguageHints";
+import { getNginxLanguageSupport } from "./nginxLanguage";
 
 const languageMap = buildCodeMirrorLanguageMap();
 
@@ -69,6 +70,7 @@ const STATIC_LANGUAGE_SUPPORTS: Record<string, () => LanguageSupport> = {
     // Use codemirror-lang-latex for both highlight + completions (via language data).
     latex: () => latex({ enableAutocomplete: true, enableLinting: false }),
     mermaid: getMermaidLanguageSupport,
+    nginx: getNginxLanguageSupport,
     plantuml: () => plantumlLanguageSupport,
 };
 

@@ -1,6 +1,6 @@
 import { Output } from '@/common/Output';
 import { Handler } from '@/common/handler';
-import { planExtractTarget, revealExtractResult } from '@/service/compress/archiveUtils';
+import { assertSafeArchiveEntryPaths, planExtractTarget, resolveContainedPath, revealExtractResult } from '@/service/compress/archiveUtils';
 import { buildFileTree } from '@/service/compress/fileTree';
 import prettyBytes from '@/service/zip/pretty-bytes';
 import iconv from 'iconv-lite';
@@ -61,7 +61,7 @@ export async function handleSevenZip(uri: Uri, handler: Handler) {
                 if (encrypted && !archivePassword) return;
 
                 await commands.executeCommand('workbench.action.keepEditor');
-                const tempPath = `${decompressPath}/${entryName}`;
+                const tempPath = resolveContainedPath(decompressPath, entryName);
                 const success = await extractSevenZipEntries(
                     uri.fsPath,
                     decompressPath,
@@ -84,7 +84,14 @@ export async function handleSevenZip(uri: Uri, handler: Handler) {
                 if (plan.createSubfolder) {
                     mkdirSync(plan.targetDir, { recursive: true });
                 }
-                const success = await extractSevenZipEntries(uri.fsPath, plan.targetDir, undefined, archivePassword, filenameEncoding);
+                const success = await extractSevenZipEntries(
+                    uri.fsPath,
+                    plan.targetDir,
+                    undefined,
+                    archivePassword,
+                    filenameEncoding,
+                    filePaths,
+                );
                 if (success) {
                     window.showInformationMessage(i18n('ext.compress.extractSuccess'));
                     await revealExtractResult(plan, filePaths);
@@ -162,8 +169,10 @@ async function extractSevenZipEntries(
     entryNames?: string[],
     password?: string,
     encoding?: string,
+    pathsToValidate?: string[],
 ) {
     try {
+        assertSafeArchiveEntryPaths(targetPath, pathsToValidate ?? entryNames ?? []);
         mkdirSync(targetPath, { recursive: true });
         const args = [
             'x',

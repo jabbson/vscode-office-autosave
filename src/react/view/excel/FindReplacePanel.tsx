@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import type Spreadsheet from './x-spreadsheet/index';
 import type { FindMatch, FindOptions } from './x-spreadsheet/index';
 import { t } from './excel_i18n';
@@ -11,11 +11,16 @@ export interface FindReplacePanelProps {
     onChanged?: () => void;
 }
 
+export interface FindReplacePanelHandle {
+    focusFindInput: (select?: boolean) => void;
+}
+
 function OptionChip({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
     return (
         <button
             type="button"
             className={`frp-chip${checked ? ' frp-chip-active' : ''}`}
+            onMouseDown={e => e.preventDefault()}
             onClick={() => onChange(!checked)}
             title={label}
         >
@@ -24,13 +29,13 @@ function OptionChip({ checked, onChange, label }: { checked: boolean; onChange: 
     );
 }
 
-export default function FindReplacePanel({
+const FindReplacePanel = forwardRef<FindReplacePanelHandle, FindReplacePanelProps>(function FindReplacePanel({
     spreadSheet,
     mode,
     onClose,
     readOnly = false,
     onChanged,
-}: FindReplacePanelProps) {
+}, ref) {
     const [findText, setFindText] = useState('');
     const [replaceText, setReplaceText] = useState('');
     const [matchCase, setMatchCase] = useState(false);
@@ -39,13 +44,26 @@ export default function FindReplacePanel({
     const [status, setStatus] = useState<{ text: string; error?: boolean } | null>(null);
     const lastMatchRef = useRef<FindMatch | null>(null);
     const findInputRef = useRef<HTMLInputElement>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
+
+    const focusFindInput = useCallback((select = false) => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                const input = findInputRef.current;
+                if (!input) return;
+                input.focus();
+                if (select) {
+                    input.select();
+                }
+            });
+        });
+    }, []);
+
+    useImperativeHandle(ref, () => ({ focusFindInput }), [focusFindInput]);
 
     useEffect(() => {
-        findInputRef.current?.focus();
-        findInputRef.current?.select();
-    }, [mode]);
-
-    const panelRef = useRef<HTMLDivElement>(null);
+        focusFindInput(true);
+    }, [mode, focusFindInput]);
 
     const buildOptions = useCallback((): FindOptions => ({
         matchCase,
@@ -56,6 +74,7 @@ export default function FindReplacePanel({
     const gotoMatch = useCallback((match: FindMatch | null) => {
         if (!spreadSheet || !match) {
             setStatus({ text: t('findReplace.notFound'), error: true });
+            focusFindInput();
             return;
         }
         spreadSheet.gotoMatch(match);
@@ -64,7 +83,8 @@ export default function FindReplacePanel({
         setStatus({
             text: t('findReplace.matchLocation', match.sheetIndex + 1, col, match.ri + 1),
         });
-    }, [spreadSheet]);
+        focusFindInput();
+    }, [spreadSheet, focusFindInput]);
 
     const handleFindNext = useCallback((backward = false) => {
         if (!spreadSheet || !findText) return;
@@ -82,13 +102,17 @@ export default function FindReplacePanel({
         let match = lastMatchRef.current;
         if (!match) {
             match = spreadSheet.findFirst(findText, options);
-            if (!match) { setStatus({ text: t('findReplace.notFound'), error: true }); return; }
+            if (!match) {
+                setStatus({ text: t('findReplace.notFound'), error: true });
+                focusFindInput();
+                return;
+            }
         }
         spreadSheet.replaceAt(match, findText, replaceText, options);
         onChanged?.();
         const next = spreadSheet.findNext(findText, match, options);
         gotoMatch(next ?? spreadSheet.findFirst(findText, options));
-    }, [spreadSheet, findText, replaceText, buildOptions, gotoMatch, onChanged]);
+    }, [spreadSheet, findText, replaceText, buildOptions, gotoMatch, onChanged, focusFindInput]);
 
     const handleReplaceAll = useCallback(() => {
         if (!spreadSheet || !findText) return;
@@ -96,7 +120,8 @@ export default function FindReplacePanel({
         onChanged?.();
         setStatus({ text: t('findReplace.replacedCount', count) });
         lastMatchRef.current = null;
-    }, [spreadSheet, findText, replaceText, buildOptions, onChanged]);
+        focusFindInput();
+    }, [spreadSheet, findText, replaceText, buildOptions, onChanged, focusFindInput]);
 
     const showReplace = mode === 'replace' && !readOnly;
 
@@ -132,19 +157,30 @@ export default function FindReplacePanel({
                             if (e.key === 'Enter') {
                                 e.preventDefault();
                                 handleFindNext(e.shiftKey);
-                                findInputRef.current?.focus();
                             }
                             if (e.key === 'Escape') onClose();
                         }}
                     />
                 </div>
                 <div className="frp-nav-btns">
-                    <button type="button" className="frp-nav-btn" title={t('findReplace.previous')} onClick={() => handleFindNext(true)}>
+                    <button
+                        type="button"
+                        className="frp-nav-btn"
+                        title={t('findReplace.previous')}
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={() => handleFindNext(true)}
+                    >
                         <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
                             <path d="M2 8 L6 4 L10 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
                     </button>
-                    <button type="button" className="frp-nav-btn" title={t('findReplace.next')} onClick={() => handleFindNext(false)}>
+                    <button
+                        type="button"
+                        className="frp-nav-btn"
+                        title={t('findReplace.next')}
+                        onMouseDown={e => e.preventDefault()}
+                        onClick={() => handleFindNext(false)}
+                    >
                         <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
                             <path d="M2 4 L6 8 L10 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
                         </svg>
@@ -168,10 +204,10 @@ export default function FindReplacePanel({
                         />
                     </div>
                     <div className="frp-replace-btns">
-                        <button type="button" className="frp-action-btn" onClick={() => handleReplace()}>
+                        <button type="button" className="frp-action-btn" onMouseDown={e => e.preventDefault()} onClick={() => handleReplace()}>
                             {t('findReplace.replace')}
                         </button>
-                        <button type="button" className="frp-action-btn frp-action-btn-primary" onClick={() => handleReplaceAll()}>
+                        <button type="button" className="frp-action-btn frp-action-btn-primary" onMouseDown={e => e.preventDefault()} onClick={() => handleReplaceAll()}>
                             {t('findReplace.replaceAll')}
                         </button>
                     </div>
@@ -191,4 +227,6 @@ export default function FindReplacePanel({
             </div>
         </div>
     );
-}
+});
+
+export default FindReplacePanel;

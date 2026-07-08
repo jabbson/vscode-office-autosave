@@ -1,6 +1,7 @@
 .vditor-hint:has(.vditor-settings-panel) {
   min-width: min(300px, calc(100vw - 32px));
   max-width: min(300px, calc(100vw - 32px));
+  max-height: min(72vh, calc(100vh - 24px));
   padding: 6px 0;
   margin-top: 6px;
   border: none;
@@ -39,9 +40,13 @@
   --vditor-popover-secondary-btn-bg-hover: color-mix(in srgb, var(--textarea-text-color) 16%, transparent);
 
   width: min(300px, calc(100vw - 32px));
+  max-height: min(calc(72vh - 12px), calc(100vh - 36px));
   padding: 10px 12px 12px;
   box-sizing: border-box;
   font-feature-settings: "kern" 1, "liga" 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  .vditor-scrollbar(var(--panel-background-color));
 
   &__ai-hint {
     display: flex;

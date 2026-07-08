@@ -189,8 +189,15 @@ function buildAdaptiveGitHistoryTheme(): GitHistoryTheme {
         '--git-graph-toolbar-btn-remote': getVscodeThemeColor('--vscode-gitDecoration-modifiedResourceForeground', '#e2c08d'),
         '--git-graph-toolbar-btn-sync': getVscodeThemeColor('--vscode-terminal-ansiCyan', '#0598bc'),
         '--git-graph-reset-option-accent': getVscodeThemeColor('--vscode-terminal-ansiYellow', '#d7ba7d'),
+        // Used by custom-styled checkboxes/buttons inside dialogs.
+        // If undefined, checked checkboxes can look "hollow" (transparent) because we use `appearance: none`.
+        '--git-graph-primary-btn-bg': getVscodeThemeColor('--vscode-button-background', '#0e639c'),
+        '--git-graph-primary-btn-bg-hover': getVscodeThemeColor('--vscode-button-hoverBackground', '#1177bb'),
+        '--git-graph-primary-btn-fg': getVscodeThemeColor('--vscode-button-foreground', '#ffffff'),
     };
     cssVars['--git-graph-detail-text'] = cssVars['--git-graph-fg'];
+    cssVars['--git-graph-emphasis-fg'] = cssVars['--git-graph-accent'];
+    cssVars['--git-graph-emphasis-fg-hover'] = cssVars['--git-graph-accent'];
 
     applyBranchColourVars(cssVars, branchColours);
 
@@ -220,25 +227,30 @@ function buildLightGitHistoryTheme(): GitHistoryTheme {
         '--git-graph-accent': '#1677ff',
         '--git-graph-uncommitted': uncommittedColour,
         '--git-graph-ref-head': '#1677ff',
-        '--git-graph-ref-tag': '#73c991',
-        '--git-graph-ref-remote': '#e2c08d',
+        '--git-graph-ref-tag': '#2ea043',
+        '--git-graph-ref-remote': '#b58900',
         '--git-graph-ref-stash': '#bc05bc',
-        '--git-graph-status-added': '#73c991',
-        '--git-graph-status-modified': '#e2c08d',
-        '--git-graph-status-deleted': '#c74e39',
-        '--git-graph-status-renamed': '#73c991',
-        '--git-graph-status-untracked': '#73c991',
+        '--git-graph-status-added': '#2ea043',
+        '--git-graph-status-modified': '#b58900',
+        '--git-graph-status-deleted': '#b42318',
+        '--git-graph-status-renamed': '#2ea043',
+        '--git-graph-status-untracked': '#2ea043',
         '--git-graph-folder-icon': '#b8860b',
         '--git-graph-code-bg': '#f0f0f0',
         '--git-graph-input-bg': '#ffffff',
         '--git-graph-input-fg': '#333333',
         '--git-graph-input-border': '#d9d9d9',
         '--git-graph-toolbar-btn-fetch': '#1677ff',
-        '--git-graph-toolbar-btn-pull': '#29b8db',
-        '--git-graph-toolbar-btn-push': '#73c991',
-        '--git-graph-toolbar-btn-remote': '#e2c08d',
+        '--git-graph-toolbar-btn-pull': '#0598bc',
+        '--git-graph-toolbar-btn-push': '#2ea043',
+        '--git-graph-toolbar-btn-remote': '#b58900',
         '--git-graph-toolbar-btn-sync': '#0598bc',
         '--git-graph-reset-option-accent': '#b58900',
+        '--git-graph-primary-btn-bg': '#007acc',
+        '--git-graph-primary-btn-bg-hover': '#006bb3',
+        '--git-graph-primary-btn-fg': '#ffffff',
+        '--git-graph-emphasis-fg': '#1677ff',
+        '--git-graph-emphasis-fg-hover': '#1677ff',
     };
     applyBranchColourVars(cssVars, branchColours);
 

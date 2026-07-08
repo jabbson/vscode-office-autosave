@@ -5,6 +5,7 @@ import {hasClosestByHeadings} from "../util/hasClosestByHeadings";
 import {getEditorRange, selectIsEditor} from "../util/selection";
 import {isInsideCodeBlockChrome} from "../codeBlock/codeMirrorManager";
 import {updateActiveHeadingMarker} from "../util/updateActiveHeadingMarker";
+import {updateTableHandle} from "../wysiwyg/tableHandle";
 
 export const highlightToolbarIR = (vditor: IVditor) => {
     clearTimeout(vditor[vditor.currentMode].hlToolbarTimeoutId);
@@ -101,5 +102,6 @@ export const highlightToolbarIR = (vditor: IVditor) => {
         }
     } finally {
         updateActiveHeadingMarker(vditor);
+        updateTableHandle(vditor);
     }
 };

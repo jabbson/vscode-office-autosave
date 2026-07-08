@@ -2,6 +2,7 @@
 .vditor-toolbar__item .vditor-tooltipped[data-type="editor-theme"] {
   width: 28px;
   min-width: 28px;
+  color: var(--editor-theme-toolbar-color, var(--list-hover-color, var(--vscode-charts-red, #e51400)));
 }
 
 .vditor-toolbar__item .vditor-tooltipped[data-type="editor-theme-label"] {
@@ -21,4 +22,16 @@
 
 .vditor-toolbar__item .vditor-tooltipped[data-type="editor-theme-label"]:hover .vditor-editor-theme-label {
   filter: brightness(1.08);
+}
+
+.vditor-toolbar__item .vditor-tooltipped[data-type="editor-theme"]:focus,
+.vditor-toolbar__item .vditor-tooltipped[data-type="editor-theme"].vditor-menu--current,
+.vditor-toolbar__item .vditor-tooltipped[data-type="editor-theme"].vditor-hint--current {
+  color: var(--editor-theme-toolbar-color, var(--list-hover-color, var(--vscode-charts-red, #e51400))) !important;
+}
+
+@media(hover: hover) and (pointer: fine) {
+  .vditor-toolbar__item .vditor-tooltipped[data-type="editor-theme"]:hover:not(.vditor-menu--disabled) {
+    color: var(--editor-theme-toolbar-color, var(--list-hover-color, var(--vscode-charts-red, #e51400)));
+  }
 }

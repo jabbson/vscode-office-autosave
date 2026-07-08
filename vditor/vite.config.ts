@@ -44,6 +44,7 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       outDir: "dist",
+      cssMinify: 'esbuild',
       minify: mode === "production",
       target: "es2015",
       lib: {

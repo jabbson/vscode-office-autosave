@@ -150,17 +150,20 @@ export default function ToolbarTooltip({ content, children, wrap = false, pinOnC
                     title: undefined,
                 })}
             </span>
-            {visible && content && createPortal(
-                <div
-                    ref={tooltipRef}
-                    className={`git-graph-toolbar-tooltip${wrap ? ' wrap' : ''} is-visible`}
-                    role="tooltip"
-                    style={{ top: position.top, left: position.left }}
-                >
-                    {content}
-                </div>,
-                document.body,
-            )}
+            {visible && content && (() => {
+                const portalRoot = document.querySelector('.git-graph') ?? document.body;
+                return createPortal(
+                    <div
+                        ref={tooltipRef}
+                        className={`git-graph-toolbar-tooltip${wrap ? ' wrap' : ''} is-visible`}
+                        role="tooltip"
+                        style={{ top: position.top, left: position.left }}
+                    >
+                        {content}
+                    </div>,
+                    portalRoot,
+                );
+            })()}
         </>
     );
 }

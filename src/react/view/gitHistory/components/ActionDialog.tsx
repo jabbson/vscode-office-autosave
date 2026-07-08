@@ -19,6 +19,10 @@ function abbrevHash(hash: string): string {
     return hash === '*' ? '*' : hash.substring(0, 8);
 }
 
+function DialogEmphasis({ children }: { children: ReactNode }) {
+    return <span className="git-graph-dialog-emphasis">{children}</span>;
+}
+
 function isDangerStep(step: PromptStep): boolean {
     if (step.kind === 'confirm' && step.danger) {
         return true;
@@ -485,10 +489,10 @@ export default function ActionDialog({
                 message = (
                     <>
                         Are you sure you want to merge {step.mergeOn}{' '}
-                        <strong><em>{step.mergeTarget}</em></strong> into{' '}
+                        <DialogEmphasis>{step.mergeTarget}</DialogEmphasis> into{' '}
                         {step.branchName ? (
                             <>
-                                <strong><em>{step.branchName}</em></strong> (the current branch)
+                                <DialogEmphasis>{step.branchName}</DialogEmphasis> (the current branch)
                             </>
                         ) : (
                             'the current branch'
@@ -501,7 +505,7 @@ export default function ActionDialog({
                     formValues,
                     setFormValues,
                     false,
-                    'git-graph-anchored-dialog-checkbox-list--styled',
+                    'git-graph-anchored-dialog-checkbox-list--styled git-graph-anchored-dialog-checkbox-list--merge',
                 );
             } else if (step.variant === 'cherryPick') {
                 message = (

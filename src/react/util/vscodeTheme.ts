@@ -37,16 +37,20 @@ export function getVscodeThemeColor(name: string, fallback: string): string {
     return value || fallback;
 }
 
-export function isVscodeDarkTheme(): boolean {
-    if (document.body.classList.contains('office-dark')) {
-        return true;
-    }
+export function isVscodeEditorDark(): boolean {
     const bg = getVscodeThemeColor('--vscode-editor-background', '#ffffff');
     const rgb = parseRgb(bg);
     if (!rgb) {
         return false;
     }
     return luminance(...rgb) < 0.5;
+}
+
+export function isVscodeDarkTheme(): boolean {
+    if (document.body.classList.contains('office-dark')) {
+        return true;
+    }
+    return isVscodeEditorDark();
 }
 
 export function observeVscodeThemeChange(onChange: () => void): () => void {

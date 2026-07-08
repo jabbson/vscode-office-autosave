@@ -3,10 +3,30 @@ import { h } from './element';
 import { bind } from './event';
 import { cssPrefix } from '../config';
 
-export default function tooltip(html, target) {
-  if (target.classList.contains('active')) {
-    return;
+export function hideTooltip() {
+  document.querySelectorAll(`.${cssPrefix}-tooltip`).forEach(el => el.remove());
+}
+
+export function shouldShowToolbarTooltip(evt, btnEl) {
+  const el = btnEl.el || btnEl;
+  if (evt.target.closest(`.${cssPrefix}-dropdown-content`)) {
+    return false;
   }
+  const topDropdown = el.querySelector(`:scope > .${cssPrefix}-dropdown`);
+  const targetDropdown = evt.target.closest(`.${cssPrefix}-dropdown`);
+  if (topDropdown && targetDropdown && targetDropdown !== topDropdown) {
+    return false;
+  }
+  for (const panel of el.querySelectorAll(`.${cssPrefix}-dropdown-content`)) {
+    if (panel.style.display === 'block') {
+      return false;
+    }
+  }
+  return true;
+}
+
+export default function tooltip(html, target) {
+  hideTooltip();
   const {
     left, top, width, height,
   } = target.getBoundingClientRect();

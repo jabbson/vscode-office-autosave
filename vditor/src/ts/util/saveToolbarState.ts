@@ -1,9 +1,8 @@
-import {getMarkdown} from "../markdown/getMarkdown";
 import {Constants} from "../constants";
 
 const SAVE_TOOLBAR_NAME = "save";
 
-const savedMarkdownMap = new WeakMap<IVditor, string>();
+const dirtyStateMap = new WeakMap<IVditor, boolean>();
 
 const setSaveButtonDisabled = (vditor: IVditor, disabled: boolean) => {
     const toolbarItem = vditor.toolbar?.elements?.[SAVE_TOOLBAR_NAME];
@@ -23,38 +22,31 @@ const setSaveButtonDisabled = (vditor: IVditor, disabled: boolean) => {
     btn.classList.remove(Constants.CLASS_MENU_DISABLED);
 };
 
-export const initSaveToolbarState = (vditor: IVditor, markdown: string) => {
-    savedMarkdownMap.set(vditor, markdown);
+export const initSaveToolbarState = (vditor: IVditor, _markdown: string) => {
+    dirtyStateMap.set(vditor, false);
     updateSaveToolbarState(vditor);
 };
 
-export const markDocumentSaved = (vditor: IVditor, markdown?: string) => {
-    savedMarkdownMap.set(vditor, markdown ?? getMarkdown(vditor));
+export const markDocumentSaved = (vditor: IVditor, _markdown?: string) => {
+    dirtyStateMap.set(vditor, false);
     updateSaveToolbarState(vditor);
 };
 
 export const isDocumentDirty = (vditor: IVditor): boolean => {
-    const saved = savedMarkdownMap.get(vditor);
-    if (saved === undefined) {
-        return false;
-    }
-    return getMarkdown(vditor) !== saved;
+    return dirtyStateMap.get(vditor) ?? false;
 };
 
 export const updateSaveToolbarState = (vditor: IVditor) => {
     if (!vditor.toolbar?.elements?.[SAVE_TOOLBAR_NAME]) {
         return;
     }
-    const saved = savedMarkdownMap.get(vditor);
-    if (saved === undefined) {
-        return;
-    }
-    setSaveButtonDisabled(vditor, getMarkdown(vditor) === saved);
+    setSaveButtonDisabled(vditor, !isDocumentDirty(vditor));
 };
 
 export const fireContentInput = (vditor: IVditor, text: string) => {
     if (typeof vditor.options.input === "function") {
         vditor.options.input(text);
     }
+    dirtyStateMap.set(vditor, true);
     updateSaveToolbarState(vditor);
 };

@@ -1,5 +1,5 @@
 import { cssPrefix } from '../../config';
-import tooltip from '../tooltip';
+import tooltip, { shouldShowToolbarTooltip } from '../tooltip';
 import { h } from '../element';
 import { t } from '../../locale/locale';
 
@@ -20,11 +20,14 @@ export default class Item {
 
   element() {
     const { tip } = this;
-    return h('div', `${cssPrefix}-toolbar-btn`)
+    const btn = h('div', `${cssPrefix}-toolbar-btn`)
       .on('mouseenter', (evt) => {
-        if (this.tip) tooltip(this.tip, evt.target);
+        if (this.tip && shouldShowToolbarTooltip(evt, btn)) {
+          tooltip(this.tip, btn.el);
+        }
       })
       .attr('data-tooltip', tip);
+    return btn;
   }
   trackTelemetry() {}
 

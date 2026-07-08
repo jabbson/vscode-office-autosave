@@ -35,6 +35,9 @@ export default {
         emptyFolder: 'Эта папка пуста',
         add: 'Добавить',
         extract: 'Извлечь',
+        jarInfo: 'Информация JAR',
+        targetJavaVersion: 'Target Java Version',
+        mainClass: 'Main-Class',
     },
     svg: {
         loading: 'Загрузка SVG...',
@@ -115,6 +118,7 @@ export default {
         renameBranch: 'Переименовать ветку',
         merge: 'Слить',
         mergeIntoCurrent: 'Слить в текущую ветку',
+        mergeIntoCurrentWithSource: 'Слить {source} в текущую ветку',
         copyCommitHash: 'Копировать хеш коммита',
         copyCommitMessage: 'Копировать сообщение коммита',
         resetBranch: 'Сбросить ветку',

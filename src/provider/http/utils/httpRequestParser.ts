@@ -115,9 +115,22 @@ export class HttpRequestParser implements RequestParser {
         // if Host header provided and url is relative path, change to absolute url
         const host = getHeader(headers, 'Host');
         if (host && requestLine.url[0] === '/') {
-            const [, port] = host.toString().split(':');
-            const scheme = port === '443' || port === '8443' ? 'https' : 'http';
-            requestLine.url = `${scheme}://${host}${requestLine.url}`;
+            let hostValue = host.toString();
+            // Extract scheme from host if present, default to http
+            let scheme = 'http';
+            const schemeMatch = hostValue.match(/^(https?):\/\//i);
+            if (schemeMatch) {
+                scheme = schemeMatch[1].toLowerCase();
+                // Remove scheme prefix from host
+                hostValue = hostValue.replace(/^https?:\/\//i, '');
+            } else {
+                // Infer scheme from port if no explicit scheme provided
+                const [, port] = hostValue.split(':');
+                if (port === '443' || port === '8443') {
+                    scheme = 'https';
+                }
+            }
+            requestLine.url = `${scheme}://${hostValue}${requestLine.url}`;
         }
 
         return new HttpRequest(requestLine.method, requestLine.url, headers, body, bodyLines.join(EOL), name);

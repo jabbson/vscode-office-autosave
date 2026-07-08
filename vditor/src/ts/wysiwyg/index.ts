@@ -20,6 +20,7 @@ import {
 import { hasClosestByHeadings } from "../util/hasClosestByHeadings";
 import { isDeleteInput } from "../util/instantHistory";
 import { flushBufferedHistory, trackHistoryInputFromEvent } from "../util/historyInputBuffer";
+import { canUsePlainTextFastPath } from "../util/plainTextFastPath";
 import {
     preventImpreciseLineStartClick,
     getCursorPosition,
@@ -27,7 +28,8 @@ import {
     getSelectPosition,
     setRangeByWbr,
 } from "../util/selection";
-import { clickToc, renderToc } from "../util/toc";
+import { clickToc, scheduleRenderToc } from "../util/toc";
+import { scheduleHighlightToolbar } from "../util/highlightToolbar";
 import { afterRenderEvent } from "./afterRenderEvent";
 import {
     genAPopover,
@@ -142,14 +144,25 @@ class WYSIWYG {
         const codeElement = hasClosestByMatchTag(range.startContainer, "CODE");
         const codeEndElement = hasClosestByMatchTag(range.endContainer, "CODE");
         if (codeElement && codeEndElement && codeEndElement.isSameNode(codeElement)) {
-            let codeText = "";
             if (codeElement.parentElement.tagName === "PRE") {
-                codeText = range.toString();
-            } else {
-                codeText = "`" + range.toString() + "`";
+                event.clipboardData.setData("text/plain", range.toString());
+                event.clipboardData.setData("text/html", buildCopiedCodeHTML(codeElement, range.toString(), true));
+                return;
             }
-            event.clipboardData.setData("text/plain", codeText);
-            event.clipboardData.setData("text/html", "");
+
+            event.clipboardData.setData("text/plain", range.toString());
+            event.clipboardData.setData("text/html", buildCopiedCodeHTML(codeElement, range.toString(), false));
+            return;
+        }
+
+        const rangeElement = (range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE ?
+            range.commonAncestorContainer as HTMLElement :
+            range.commonAncestorContainer.parentElement) as HTMLElement | null;
+        if (rangeElement && rangeElement.children.length === 1 && rangeElement.firstElementChild?.tagName === "CODE") {
+            const onlyCodeChild = rangeElement.firstElementChild as HTMLElement;
+            event.clipboardData.setData("text/plain", range.toString());
+            event.clipboardData.setData("text/html", buildCopiedCodeHTML(onlyCodeChild, range.toString(),
+                rangeElement.tagName === "PRE"));
             return;
         }
 
@@ -249,7 +262,7 @@ class WYSIWYG {
             const headingElement = hasClosestByHeadings(getSelection().getRangeAt(0).startContainer);
             if (headingElement && headingElement.textContent === "") {
                 // heading 为空删除 https://github.com/Vanessa219/vditor/issues/150
-                renderToc(vditor);
+                scheduleRenderToc(vditor);
                 return;
             }
             if (!isFirefox()) {
@@ -324,16 +337,25 @@ class WYSIWYG {
             const headingElement = hasClosestByHeadings(getSelection().getRangeAt(0).startContainer);
             if (headingElement && headingElement.textContent === "") {
                 // heading 为空删除 https://github.com/Vanessa219/vditor/issues/150
-                renderToc(vditor);
+                scheduleRenderToc(vditor);
                 headingElement.remove();
             } else if (headingElement && splitHeadingOnNewline(vditor, headingElement)) {
-                renderToc(vditor);
+                scheduleRenderToc(vditor);
             }
 
             if ((startSpace && blockElement.getAttribute("data-type") !== "code-block")
                 || endSpace || isHeadingMD(blockElement.innerHTML) ||
                 (isHrMD(blockElement.innerHTML) && blockElement.previousElementSibling)) {
                 fireContentInput(vditor, getMarkdown(vditor));
+                if (shouldFlushHistory) {
+                    flushBufferedHistory(vditor);
+                } else {
+                    afterRenderEvent(vditor);
+                }
+                return;
+            }
+
+            if (canUsePlainTextFastPath(vditor, event)) {
                 if (shouldFlushHistory) {
                     flushBufferedHistory(vditor);
                 } else {
@@ -504,7 +526,7 @@ class WYSIWYG {
                 expandMarkerWithMathSync(range, vditor);
             }
 
-            highlightToolbarWYSIWYG(vditor);
+            scheduleHighlightToolbar(vditor);
 
             if (event.key !== "ArrowDown" && event.key !== "ArrowRight" && event.key !== "Backspace"
                 && event.key !== "ArrowLeft" && event.key !== "ArrowUp") {
@@ -585,5 +607,27 @@ class WYSIWYG {
         });
     }
 }
+
+const buildCopiedCodeHTML = (sourceCodeElement: HTMLElement, text: string, wrapPre: boolean) => {
+    const codeElement = document.createElement("code");
+    codeElement.className = sourceCodeElement.className;
+    codeElement.textContent = text;
+    for (const name of sourceCodeElement.getAttributeNames()) {
+        if (name === "class") {
+            continue;
+        }
+        const value = sourceCodeElement.getAttribute(name);
+        if (value !== null) {
+            codeElement.setAttribute(name, value);
+        }
+    }
+    if (!wrapPre) {
+        return codeElement.outerHTML;
+    }
+
+    const preElement = document.createElement("pre");
+    preElement.appendChild(codeElement);
+    return preElement.outerHTML;
+};
 
 export { WYSIWYG };

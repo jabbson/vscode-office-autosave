@@ -7,8 +7,8 @@ import {clearHistoryInputBuffer} from "../util/historyInputBufferState";
 import {listToggle} from "../util/fixBrowserBehavior";
 import {hasClosestBlock, hasClosestByAttribute, hasClosestByClassName, hasClosestByMatchTag} from "../util/hasClosest";
 import {getEditorRange, setRangeByWbr, setSelectionFocus} from "../util/selection";
-import {getHistoryRecordWait} from "../util/historySchedule";
-import {renderToc} from "../util/toc";
+import {getHistoryMaxWaitFactor, getHistoryRecordWait} from "../util/historySchedule";
+import {scheduleRenderToc} from "../util/toc";
 import {highlightToolbarIR} from "./highlightToolbarIR";
 import {input} from "./input";
 
@@ -46,7 +46,7 @@ export const recordHistory = (vditor: IVditor, options = {
     }
 
     if (vditor.options.outline.enable) {
-        renderToc(vditor);
+        scheduleRenderToc(vditor);
     }
 
     vditor.ir.afterRenderLastAt = Date.now();
@@ -63,7 +63,11 @@ export const processAfterRender = (vditor: IVditor, options = {
     }
 
     clearTimeout(vditor.ir.processTimeoutId);
-    const wait = getHistoryRecordWait(vditor.ir.afterRenderLastAt, vditor.options.undoDelay);
+    const wait = getHistoryRecordWait(
+        vditor.ir.afterRenderLastAt,
+        vditor.options.undoDelay,
+        getHistoryMaxWaitFactor(vditor),
+    );
     vditor.ir.processTimeoutId = window.setTimeout(() => {
         recordHistory(vditor, options);
     }, wait);

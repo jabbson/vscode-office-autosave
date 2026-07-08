@@ -18,15 +18,10 @@ export class Find extends MenuItem {
             return findBar;
         };
 
-        const open = () => {
-            const bar = getOrCreateBar();
-            if (!bar.isVisible()) bar.show();
-        };
-
         btn.addEventListener(getEventName(), (e) => {
             e.preventDefault();
             const bar = getOrCreateBar();
-            bar.toggle();
+            bar.toggle(false);
         });
 
         document.addEventListener("keydown", (e) => {
@@ -36,7 +31,18 @@ export class Find extends MenuItem {
                 if (bar.isVisible()) {
                     bar.focusInput();
                 } else {
-                    bar.show();
+                    bar.show(true);
+                }
+                return;
+            }
+
+            if ((e.ctrlKey || e.metaKey) && e.key === "r") {
+                e.preventDefault();
+                const bar = getOrCreateBar();
+                if (bar.isVisible()) {
+                    bar.focusReplaceInput();
+                } else {
+                    bar.showReplace();
                 }
             }
         });

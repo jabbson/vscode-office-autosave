@@ -12,7 +12,7 @@ import {getEventName} from "../util/compatibility";
 import {highlightToolbar} from "../util/highlightToolbar";
 import {log} from "../util/log";
 import {processCodeRender} from "../util/processCode";
-import {renderToc} from "../util/toc";
+import {renderTocNow} from "../util/toc";
 import {ensureEditorBoundaryParagraphs, renderDomByMd} from "../wysiwyg/renderDomByMd";
 import {renderCodeBlocks} from "../codeBlock/codeMirrorManager";
 import {MenuItem} from "./MenuItem";
@@ -125,7 +125,7 @@ export const setEditMode = (
     } else if (wasCacheContentRestored(vditor)) {
         restoreCacheFocus(vditor, { onLoad: true });
     }
-    renderToc(vditor);
+    renderTocNow(vditor);
 
     if (vditor.toolbar.elements["edit-mode"]) {
         vditor.toolbar.elements["edit-mode"].querySelectorAll("button").forEach((item) => {

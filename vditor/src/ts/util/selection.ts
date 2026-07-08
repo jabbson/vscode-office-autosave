@@ -262,6 +262,92 @@ export const selectIsEditor = (editor: HTMLElement, range?: Range) => {
     return editor.isEqualNode(container) || editor.contains(container);
 };
 
+const getObsidianTagSourceElement = (tag: HTMLElement): HTMLElement | null => {
+    for (let i = 0; i < tag.children.length; i++) {
+        const child = tag.children[i];
+        if (!(child instanceof HTMLElement)) {
+            continue;
+        }
+        if (child.classList.contains("vditor-obsidian-tag__source")) {
+            return child;
+        }
+    }
+    return null;
+};
+
+const getInlineEditableSourceElement = (node: HTMLElement): HTMLElement | null => {
+    return getWikilinkSourceElement(node) || getObsidianTagSourceElement(node);
+};
+
+export const isRangeInObsidianTagDisplay = (tag: HTMLElement, range: Range) => {
+    const display = tag.querySelector(".vditor-obsidian-tag__display");
+    if (!display) {
+        return false;
+    }
+    if (display.contains(range.startContainer)) {
+        return true;
+    }
+    if (range.startContainer === tag) {
+        const child = tag.childNodes[range.startOffset];
+        return !!child && (display === child || display.contains(child));
+    }
+    return false;
+};
+
+const isRangeInObsidianTagSource = (tag: HTMLElement, range: Range) => {
+    const source = getObsidianTagSourceElement(tag);
+    if (!source) {
+        return false;
+    }
+    if (source.contains(range.startContainer)) {
+        return true;
+    }
+    if (range.startContainer === tag) {
+        const child = tag.childNodes[range.startOffset];
+        return !!child && (source === child || source.contains(child));
+    }
+    return false;
+};
+
+export const isRangeInObsidianTagEditingArea = (tag: HTMLElement, range: Range) => {
+    return isRangeInObsidianTagSource(tag, range);
+};
+
+export const escapeObsidianTagRange = (range: Range, tag: HTMLElement) => {
+    if (range.startContainer === tag) {
+        if (range.startOffset > tag.childNodes.length / 2) {
+            range.setStartAfter(tag);
+        } else {
+            range.setStartBefore(tag);
+        }
+        range.collapse(true);
+        return;
+    }
+    if (tag.contains(range.startContainer)) {
+        range.setStartAfter(tag);
+        range.collapse(true);
+    }
+};
+
+export const focusObsidianTagEditingRangeFromDisplay = (range: Range, tag: HTMLElement) => {
+    const source = getObsidianTagSourceElement(tag);
+    const display = tag.querySelector(".vditor-obsidian-tag__display");
+    if (!source || !display) {
+        focusObsidianTagEditingRange(range, tag);
+        return;
+    }
+    const displayOffset = getTextOffsetInElement(display as HTMLElement, range);
+    if (!setRangeAtStrippedTextOffset(source, range, displayOffset)) {
+        focusInlineNodeTextRange(range, tag, displayOffset > 0);
+    }
+    setSelectionFocus(range);
+};
+
+export const focusObsidianTagEditingRange = (range: Range, tag: HTMLElement, atEnd = true) => {
+    focusInlineNodeTextRange(range, tag, atEnd);
+    setSelectionFocus(range);
+};
+
 const getWikilinkSourceElement = (wikilink: HTMLElement): HTMLElement | null => {
     for (let i = 0; i < wikilink.children.length; i++) {
         const child = wikilink.children[i];
@@ -275,8 +361,160 @@ const getWikilinkSourceElement = (wikilink: HTMLElement): HTMLElement | null => 
     return null;
 };
 
+const stripZwsp = (text: string) => text.replace(/\u200b/g, "");
+
+const getTextOffsetInElement = (element: HTMLElement, range: Range) => {
+    const preRange = document.createRange();
+    preRange.selectNodeContents(element);
+    preRange.setEnd(range.startContainer, range.startOffset);
+    return stripZwsp(preRange.toString()).length;
+};
+
+const mapWikilinkDisplayOffsetToSource = (displayText: string, sourceText: string, displayOffset: number) => {
+    const display = stripZwsp(displayText);
+    const source = stripZwsp(sourceText);
+    const boundedDisplayOffset = Math.max(0, Math.min(displayOffset, display.length));
+    if (display === source) {
+        return boundedDisplayOffset;
+    }
+    const pipeIndex = source.indexOf("|");
+    if (pipeIndex >= 0) {
+        const alias = source.substring(pipeIndex + 1);
+        if (alias === display) {
+            return Math.min(pipeIndex + 1 + boundedDisplayOffset, source.length);
+        }
+        const dest = source.substring(0, pipeIndex);
+        if (dest === display) {
+            return boundedDisplayOffset;
+        }
+    }
+    if (source.startsWith(display)) {
+        return boundedDisplayOffset;
+    }
+    return source.length;
+};
+
+const setRangeAtStrippedTextOffset = (element: HTMLElement, range: Range, targetOffset: number) => {
+    let charIndex = 0;
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+        const textNode = walker.currentNode as Text;
+        const text = textNode.textContent || "";
+        for (let i = 0; i < text.length; i++) {
+            if (text.charAt(i) === Constants.ZWSP) {
+                continue;
+            }
+            if (charIndex === targetOffset) {
+                range.setStart(textNode, i);
+                range.collapse(true);
+                return true;
+            }
+            charIndex++;
+        }
+    }
+    let lastText: Text | null = null;
+    const lastWalker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    while (lastWalker.nextNode()) {
+        lastText = lastWalker.currentNode as Text;
+    }
+    if (lastText) {
+        range.setStart(lastText, lastText.textContent?.length || 0);
+        range.collapse(true);
+        return true;
+    }
+    return false;
+};
+
+export const isRangeInWikilinkDisplay = (wikilink: HTMLElement, range: Range) => {
+    const display = wikilink.querySelector(".vditor-wikilink__display");
+    if (!display) {
+        return false;
+    }
+    if (display.contains(range.startContainer)) {
+        return true;
+    }
+    if (range.startContainer === wikilink) {
+        const child = wikilink.childNodes[range.startOffset];
+        return !!child && (display === child || display.contains(child));
+    }
+    return false;
+};
+
+const isRangeInWikilinkSource = (wikilink: HTMLElement, range: Range) => {
+    const source = getWikilinkSourceElement(wikilink) || wikilink.querySelector(".vditor-wikilink__source");
+    if (!source) {
+        return false;
+    }
+    if (source.contains(range.startContainer)) {
+        return true;
+    }
+    if (range.startContainer === wikilink) {
+        const child = wikilink.childNodes[range.startOffset];
+        return !!child && (source === child || source.contains(child));
+    }
+    return false;
+};
+
+const isRangeInWikilinkMarker = (wikilink: HTMLElement, range: Range) => {
+    const markers = wikilink.querySelectorAll(".vditor-ir__marker");
+    for (let i = 0; i < markers.length; i++) {
+        if (markers[i].contains(range.startContainer)) {
+            return true;
+        }
+    }
+    if (range.startContainer === wikilink) {
+        const child = wikilink.childNodes[range.startOffset];
+        return child instanceof HTMLElement && child.classList.contains("vditor-ir__marker");
+    }
+    return false;
+};
+
+export const isRangeInWikilinkEditingArea = (wikilink: HTMLElement, range: Range) => {
+    return isRangeInWikilinkSource(wikilink, range) || isRangeInWikilinkMarker(wikilink, range);
+};
+
+export const escapeWikilinkRange = (range: Range, wikilink: HTMLElement) => {
+    if (range.startContainer === wikilink) {
+        if (range.startOffset > wikilink.childNodes.length / 2) {
+            range.setStartAfter(wikilink);
+        } else {
+            range.setStartBefore(wikilink);
+        }
+        range.collapse(true);
+        return;
+    }
+    if (wikilink.contains(range.startContainer)) {
+        range.setStartAfter(wikilink);
+        range.collapse(true);
+    }
+};
+
+export const focusWikilinkEditingRangeFromDisplay = (range: Range, wikilink: HTMLElement) => {
+    const source = getWikilinkSourceElement(wikilink);
+    const display = wikilink.querySelector(".vditor-wikilink__display");
+    if (!source || !display) {
+        focusWikilinkEditingRange(range, wikilink);
+        return;
+    }
+    const displayOffset = getTextOffsetInElement(display as HTMLElement, range);
+    const sourceOffset = mapWikilinkDisplayOffsetToSource(
+        display.textContent || "",
+        source.textContent || "",
+        displayOffset,
+    );
+    if (!setRangeAtStrippedTextOffset(source, range, sourceOffset)) {
+        focusInlineNodeTextRange(range, wikilink, sourceOffset > 0);
+    }
+    setSelectionFocus(range);
+};
+
+export const focusWikilinkEditingRange = (range: Range, wikilink: HTMLElement, atEnd = true) => {
+    focusInlineNodeTextRange(range, wikilink, atEnd);
+    setSelectionFocus(range);
+};
+
 const focusInlineNodeTextRange = (range: Range, node: HTMLElement, atEnd: boolean) => {
-    const source = getWikilinkSourceElement(node);
+    const source = getInlineEditableSourceElement(node);
     const target = source || node;
     let textNode: Text | null = null;
     let lastText: Text | null = null;
@@ -417,6 +655,24 @@ export const setRangeByWbr = (element: HTMLElement, range: Range) => {
     if (!wbrElement) {
         return;
     }
+    const contentSpan = wbrElement.parentElement;
+    if (contentSpan && (contentSpan.getAttribute("data-newline") === "1"
+        || contentSpan.classList.contains("vditor-wikilink__source")
+        || contentSpan.classList.contains("vditor-obsidian-tag__source"))) {
+        if (wbrElement.previousSibling?.nodeType === Node.TEXT_NODE) {
+            range.setStart(wbrElement.previousSibling, wbrElement.previousSibling.textContent.length);
+        } else if (wbrElement.nextSibling?.nodeType === Node.TEXT_NODE) {
+            range.setStart(wbrElement.nextSibling, 0);
+        } else {
+            const zwsp = document.createTextNode(Constants.ZWSP);
+            contentSpan.insertBefore(zwsp, wbrElement);
+            range.setStart(zwsp, zwsp.length);
+        }
+        range.collapse(true);
+        wbrElement.remove();
+        setSelectionFocus(range);
+        return;
+    }
     if (!wbrElement.previousElementSibling) {
         if (wbrElement.previousSibling) {
             // text<wbr>
@@ -461,6 +717,67 @@ export const setRangeByWbr = (element: HTMLElement, range: Range) => {
     range.collapse(true);
     wbrElement.remove();
     setSelectionFocus(range);
+};
+
+const isEmptyParagraphBlock = (element: Element | null): boolean => {
+    return !!element
+        && element.tagName === "P"
+        && (element as HTMLElement).getAttribute("data-block") === "0"
+        && (element as HTMLElement).textContent.trim().replaceAll(Constants.ZWSP, "") === "";
+};
+
+const removeAdjacentEmptyParagraphs = (block: HTMLElement) => {
+    const prev = block.previousElementSibling;
+    const next = block.nextElementSibling;
+    if (isEmptyParagraphBlock(prev)) {
+        prev.remove();
+    }
+    if (isEmptyParagraphBlock(next)) {
+        next.remove();
+    }
+};
+
+/** Md2Vditor 转出的 HTML 在局部替换前规范化，避免误走块级插入 */
+export const normalizeMdInsertHtml = (html: string, vditor: IVditor): string => {
+    const tempElement = document.createElement("div");
+    tempElement.innerHTML = html;
+    while (tempElement.firstElementChild && isEmptyParagraphBlock(tempElement.firstElementChild)) {
+        tempElement.firstElementChild.remove();
+    }
+    const tempBlockElement = tempElement.querySelectorAll("p");
+    if (tempBlockElement.length === 1 && !tempBlockElement[0].previousSibling && !tempBlockElement[0].nextSibling
+        && vditor[vditor.currentMode].element.children.length > 0 && tempElement.firstElementChild?.tagName === "P") {
+        return tempBlockElement[0].innerHTML.replace(/^(<br\s*\/?>\s*)+/i, "").trim();
+    }
+    return tempElement.innerHTML;
+};
+
+/** AI 局部替换：强制行内插入，避免 insertHTML 块级路径留下前置空段落 */
+export const insertMdForAIReplace = (html: string, vditor: IVditor, hostBlock: HTMLElement | null) => {
+    let insertHtml = normalizeMdInsertHtml(html, vditor);
+    const temp = document.createElement("div");
+    temp.innerHTML = insertHtml;
+    if (temp.children.length === 1) {
+        const child = temp.firstElementChild as HTMLElement;
+        if (child.getAttribute("data-block") === "0" && child.tagName === "P") {
+            insertHtml = child.innerHTML.replace(/^(<br\s*\/?>\s*)+/i, "").trim();
+        }
+    }
+    const range = getEditorRange(vditor);
+    vditor[vditor.currentMode].preventInput = true;
+    const pasteTemplate = document.createElement("template");
+    pasteTemplate.innerHTML = insertHtml;
+    range.insertNode(pasteTemplate.content.cloneNode(true));
+    range.collapse(false);
+    setSelectionFocus(range);
+    vditor[vditor.currentMode].range = range;
+    if (hostBlock && isEmptyParagraphBlock(hostBlock)) {
+        hostBlock.remove();
+    }
+    const currentBlock = hasClosestBlock(range.startContainer);
+    if (currentBlock) {
+        removeAdjacentEmptyParagraphs(currentBlock as HTMLElement);
+    }
 };
 
 export const insertHTML = (html: string, vditor: IVditor) => {

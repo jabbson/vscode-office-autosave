@@ -35,6 +35,9 @@ export default {
         emptyFolder: '이 폴더는 비어 있습니다',
         add: '추가',
         extract: '압축 해제',
+        jarInfo: 'JAR 정보',
+        targetJavaVersion: 'Target Java Version',
+        mainClass: 'Main-Class',
     },
     svg: {
         loading: 'SVG 로딩 중...',
@@ -115,6 +118,7 @@ export default {
         renameBranch: '브랜치 이름 바꾸기',
         merge: '병합',
         mergeIntoCurrent: '현재 브랜치에 병합',
+        mergeIntoCurrentWithSource: '{source}을(를) 현재 브랜치에 병합',
         copyCommitHash: '커밋 해시 복사',
         copyCommitMessage: '커밋 메시지 복사',
         resetBranch: '브랜치 리셋',

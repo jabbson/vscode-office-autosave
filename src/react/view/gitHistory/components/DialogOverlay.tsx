@@ -1,6 +1,6 @@
 import { useEffect, type MouseEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { themeStyle, useGitHistoryTheme } from '../theme/gitHistoryTheme';
+import { themeStyle, useGitHistoryColorMode, useGitHistoryTheme } from '../theme/gitHistoryTheme';
 
 interface DialogOverlayProps {
     children: ReactNode;
@@ -10,6 +10,7 @@ interface DialogOverlayProps {
 
 export default function DialogOverlay({ children, onCancel, anchored = false }: DialogOverlayProps) {
     const { cssVars } = useGitHistoryTheme();
+    const colorMode = useGitHistoryColorMode();
 
     useEffect(() => {
         document.body.classList.add('git-graph-dialog-open');
@@ -23,7 +24,7 @@ export default function DialogOverlay({ children, onCancel, anchored = false }: 
     };
 
     return createPortal(
-        <div className="git-graph" style={themeStyle(cssVars)}>
+        <div className={`git-graph${colorMode === 'light' ? ' git-graph-light' : ''}`} style={themeStyle(cssVars)}>
             <div
                 className={`git-graph-dialog-overlay${anchored ? ' anchored' : ''}`}
                 onMouseDown={handleOverlayMouseDown}

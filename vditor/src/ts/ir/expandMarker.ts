@@ -1,5 +1,76 @@
 import {hasClosestByClassName, hasTopClosestByClassName} from "../util/hasClosest";
-import {setSelectionFocus} from "../util/selection";
+import {
+    escapeObsidianTagRange,
+    escapeWikilinkRange,
+    focusObsidianTagEditingRange,
+    focusObsidianTagEditingRangeFromDisplay,
+    focusWikilinkEditingRange,
+    focusWikilinkEditingRangeFromDisplay,
+    isRangeInObsidianTagDisplay,
+    isRangeInObsidianTagEditingArea,
+    isRangeInWikilinkDisplay,
+    isRangeInWikilinkEditingArea,
+    setSelectionFocus,
+} from "../util/selection";
+
+const focusExpandedWikilink = (nodeElement: HTMLElement, range: Range, atEnd = true, fromOutside = false) => {
+    const dataType = nodeElement.getAttribute("data-type");
+    if (dataType !== "wikilink" && dataType !== "wikilink-embed") {
+        return false;
+    }
+    if (!fromOutside) {
+        if (isRangeInWikilinkDisplay(nodeElement, range)) {
+            focusWikilinkEditingRangeFromDisplay(range, nodeElement);
+            return true;
+        }
+        if (isRangeInWikilinkEditingArea(nodeElement, range)) {
+            setSelectionFocus(range);
+            return true;
+        }
+        return false;
+    }
+    focusWikilinkEditingRange(range, nodeElement, atEnd);
+    return true;
+};
+
+const focusExpandedObsidianTag = (nodeElement: HTMLElement, range: Range, atEnd = true, fromOutside = false) => {
+    if (nodeElement.getAttribute("data-type") !== "obsidian-tag") {
+        return false;
+    }
+    if (!fromOutside) {
+        if (isRangeInObsidianTagDisplay(nodeElement, range)) {
+            focusObsidianTagEditingRangeFromDisplay(range, nodeElement);
+            return true;
+        }
+        if (isRangeInObsidianTagEditingArea(nodeElement, range)) {
+            setSelectionFocus(range);
+            return true;
+        }
+        return false;
+    }
+    focusObsidianTagEditingRange(range, nodeElement, atEnd);
+    return true;
+};
+
+const focusExpandedInlineNode = (nodeElement: HTMLElement, range: Range, atEnd = true, fromOutside = false) => {
+    if (focusExpandedWikilink(nodeElement, range, atEnd, fromOutside)) {
+        return true;
+    }
+    return focusExpandedObsidianTag(nodeElement, range, atEnd, fromOutside);
+};
+
+const escapeSpecialInlineNodeRange = (nodeElement: HTMLElement, range: Range) => {
+    const dataType = nodeElement.getAttribute("data-type");
+    if (dataType === "wikilink" || dataType === "wikilink-embed") {
+        escapeWikilinkRange(range, nodeElement);
+        return true;
+    }
+    if (dataType === "obsidian-tag") {
+        escapeObsidianTagRange(range, nodeElement);
+        return true;
+    }
+    return false;
+};
 
 const nextIsNode = (range: Range) => {
     const startContainer = range.startContainer;
@@ -45,11 +116,17 @@ const previousIsNode = (range: Range) => {
 };
 
 export const expandMarker = (range: Range, root: HTMLElement) => {
+    let collapsedExpandedWikilink: HTMLElement | null = null;
     root.querySelectorAll(".vditor-ir__node--expand").forEach((item) => {
         if ((item as HTMLElement).classList.contains("vditor-code-block--cm")) {
             return;
         }
-        item.classList.remove("vditor-ir__node--expand");
+        const element = item as HTMLElement;
+        const dataType = element.getAttribute("data-type");
+        if (dataType === "wikilink" || dataType === "wikilink-embed" || dataType === "obsidian-tag") {
+            collapsedExpandedWikilink = element;
+        }
+        element.classList.remove("vditor-ir__node--expand");
     });
 
     const nodeElement = hasTopClosestByClassName(range.startContainer, "vditor-ir__node");
@@ -66,26 +143,34 @@ export const expandMarker = (range: Range, root: HTMLElement) => {
         nodeElement.classList.add("vditor-ir__node--expand");
         nodeElement.classList.remove("vditor-ir__node--hidden");
         // https://github.com/Vanessa219/vditor/issues/615 safari中光标位置跳动
-        setSelectionFocus(range);
+        if (!focusExpandedInlineNode(nodeElement, range)) {
+            if (escapeSpecialInlineNodeRange(nodeElement, range)) {
+                nodeElement.classList.remove("vditor-ir__node--expand");
+            }
+            setSelectionFocus(range);
+        }
+        return;
     }
 
     const nextNode = nextIsNode(range);
-    if (nextNode) {
+    if (nextNode && nextNode !== collapsedExpandedWikilink) {
         if (nextNode.getAttribute("contenteditable") === "false") {
             return;
         }
         nextNode.classList.add("vditor-ir__node--expand");
         nextNode.classList.remove("vditor-ir__node--hidden");
+        focusExpandedInlineNode(nextNode, range, false, true);
         return;
     }
 
     const previousNode = previousIsNode(range);
-    if (previousNode) {
+    if (previousNode && previousNode !== collapsedExpandedWikilink) {
         if (previousNode.getAttribute("contenteditable") === "false") {
             return;
         }
         previousNode.classList.add("vditor-ir__node--expand");
         previousNode.classList.remove("vditor-ir__node--hidden");
+        focusExpandedInlineNode(previousNode, range, true, true);
         return;
     }
 };

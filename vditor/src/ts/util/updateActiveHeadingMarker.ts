@@ -37,8 +37,8 @@ export const updateActiveHeadingMarker = (vditor: IVditor) => {
         return;
     }
     const editorElement = vditor[vditor.currentMode].element;
-    clearActiveHeadingMarker(vditor);
     if (!selectIsEditor(editorElement) || !isEditorAreaFocused(vditor)) {
+        clearActiveHeadingMarker(vditor);
         return;
     }
 
@@ -49,8 +49,17 @@ export const updateActiveHeadingMarker = (vditor: IVditor) => {
     }
 
     const headingElement = hasClosestByHeadings(typeElement) as HTMLElement | false;
+    const currentActive = editorElement.querySelector(`.${ACTIVE_CLASS}`) as HTMLElement | null;
     if (headingElement && editorElement.contains(headingElement) && headingElement.parentElement === editorElement) {
+        if (currentActive === headingElement) {
+            return;
+        }
+        clearActiveHeadingMarker(vditor);
         headingElement.classList.add(ACTIVE_CLASS);
         syncBlockMarkerTop(headingElement);
+        return;
+    }
+    if (currentActive) {
+        clearActiveHeadingMarker(vditor);
     }
 };

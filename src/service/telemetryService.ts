@@ -40,6 +40,13 @@ export class TelemetryService {
         return workspace.getConfiguration('vscode-office').get<boolean>('enableTelemetry', true);
     }
 
+    private getCommonProperties(): Record<string, string> {
+        return {
+            app_name: env.appName,
+            language: env.language,
+        };
+    }
+
     trackViewOpen(viewType: string, fileType?: string, properties?: Record<string, string>): void {
         if (!this.enabled()) {
             return;
@@ -55,6 +62,7 @@ export class TelemetryService {
             viewType,
             ...(fileType ? { fileType } : {}),
             ...properties,
+            ...this.getCommonProperties(),
         });
     }
 
@@ -70,7 +78,10 @@ export class TelemetryService {
         if (!this.enabled()) {
             return;
         }
-        this.reporter!.sendTelemetryEvent(event, properties);
+        this.reporter!.sendTelemetryEvent(event, {
+            ...properties,
+            ...this.getCommonProperties(),
+        });
     }
 
 }

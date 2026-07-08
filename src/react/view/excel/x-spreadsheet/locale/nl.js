@@ -55,6 +55,7 @@ export default {
     normal: 'Standaard',
     text: 'Tekst',
     number: 'Nummer',
+    numberPlain: 'Nummer (eenvoudig)',
     percent: 'Percentage',
     rmb: 'RMB',
     usd: 'USD',
@@ -88,7 +89,7 @@ export default {
     exportOdsLabel: 'OpenDocument (.ods)',
     exportOdsDesc: 'Compatibel met LibreOffice / WPS',
     switchToLightMode: 'Schakel naar lichte modus',
-    switchToDarkMode: 'Schakel naar donkere modus',
+    switchToDarkMode: 'Schakel naar adaptieve modus (volg VS Code-thema)',
   },
   findReplace: {
     title: 'Zoeken',

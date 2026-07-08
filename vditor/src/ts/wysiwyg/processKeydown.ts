@@ -31,7 +31,7 @@ import { hasClosestByHeadings } from "../util/hasClosestByHeadings";
 import { matchHotKey } from "../util/hotKey";
 import { recordHistoryChange } from "../util/instantHistory";
 import { getEditorRange, getSelectPosition, setSelectionFocus } from "../util/selection";
-import { keydownToc, renderToc } from "../util/toc";
+import { keydownToc, renderTocNow } from "../util/toc";
 import { afterRenderEvent } from "./afterRenderEvent";
 import { moveDown, moveUp, handleLinkPopoverAltEnter } from "./highlightToolbarWYSIWYG";
 import { nextIsCode } from "./inlineTag";
@@ -208,7 +208,7 @@ export const processKeydown = (vditor: IVditor, event: KeyboardEvent) => {
         if (!isCtrl(event) && !event.altKey && event.key === "Enter") {
             // enter/shift+enter: 标题换行时新行应为段落 https://github.com/Vanessa219/vditor/issues/48
             fixHeadingEnter(vditor, range, headingElement);
-            renderToc(vditor);
+            renderTocNow(vditor);
             afterRenderEvent(vditor);
             event.preventDefault();
             return true;

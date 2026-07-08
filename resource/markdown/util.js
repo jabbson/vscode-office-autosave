@@ -35,7 +35,6 @@ export async function getToolbar(resPath, onSave = null) {
         },
         'upload',
         "|",
-        'editor-theme-label',
         "editor-theme",
         "editor-theme-toggle",
         "|",
@@ -46,7 +45,6 @@ export async function getToolbar(resPath, onSave = null) {
         "table",
         "|",
         "quote",
-        "line",
         "code",
         "inline-code",
         "|",
@@ -55,8 +53,7 @@ export async function getToolbar(resPath, onSave = null) {
         "|",
         "find",
         "ai-settings",
-        "settings",
-        "help",
+        "settings"
     ]
 }
 

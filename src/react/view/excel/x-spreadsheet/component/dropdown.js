@@ -1,5 +1,6 @@
 import { Element, h } from './element';
 import { bindClickoutside, unbindClickoutside } from './event';
+import { hideTooltip } from './tooltip';
 import { cssPrefix } from '../config';
 
 export default class Dropdown extends Element {
@@ -48,6 +49,7 @@ export default class Dropdown extends Element {
   }
 
   show() {
+    hideTooltip();
     const { contentEl } = this;
     contentEl.show();
     this.parent().active();

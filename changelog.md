@@ -1,5 +1,67 @@
 # Change log
 
+# 4.1.5 2026-7-8
+
+Fix:
+
+- Fix unexpected file reload on edit.
+- Prevent Zip Slip path traversal in archive extraction(Reported by Mykhailo Kholiev).
+
+Git History:
+
+- Improve git history view UI.
+- Change date format to yyyy-MM-dd.
+- Support more remote URL formats.
+
+Markdown Editor:
+
+New:
+- Add Shift+Tab support.
+- Add typewriter mode support.
+- Add new line button for quick row insertion.
+- Support quick drag to resize images(Pro Feature).
+
+Update:
+
+- Improve large file editing performance.
+- Add replace feature to find component.
+- IR mode: support block drag-and-drop and table enhancements.
+- Beautify context menu and settings modal.
+- Remove automatic double quote completion.
+- Remove default 400px code block height limit.
+
+Fix:
+
+- Fix failure to edit tags and wikilinks normally.
+- Fix extra blank line left after deleting sublist
+- Fix settings modal closing when deleting prompt or model.
+
+Excel:
+
+Update:
+
+- Copy cells with HTML formatting.
+- Support zoom adjustment via scroll wheel.
+- Preserve formatting when pasting from Excel.
+- Support editable image drag and resize.
+- Support cell selection in config function.
+- Improve user interaction and context menu appearance.
+- Change page scrolling from cell-based to pixel-based.
+
+Fix:
+
+- Fix find component focus accuracy.
+- Fix vertical alignment display error.
+- Fix cell text overflow, editor overlay, and row height.
+- Fix cell interaction and descending sort after sorting.
+
+# 4.1.3-4 2026-7-3
+
+Fix:
+
+- Fix SVG loading failure.
+- Fix PPTX loading failure.
+
 # 4.1.2 2026-7-3
 
 Markdown Editor:

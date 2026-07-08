@@ -6,9 +6,38 @@ class Cols {
   }) {
     this._ = {};
     this.len = len;
-    this.width = width;
-    this.indexWidth = indexWidth;
-    this.minWidth = minWidth;
+    this.baseWidth = width;
+    this.baseIndexWidth = indexWidth;
+    this.baseMinWidth = minWidth;
+    this.zoomScale = 1;
+  }
+
+  get width() {
+    return Math.max(1, Math.round(this.baseWidth * this.zoomScale));
+  }
+
+  set width(v) {
+    this.baseWidth = v;
+  }
+
+  get indexWidth() {
+    return Math.max(1, Math.round(this.baseIndexWidth * this.zoomScale));
+  }
+
+  set indexWidth(v) {
+    this.baseIndexWidth = v;
+  }
+
+  get minWidth() {
+    return Math.max(1, Math.round(this.baseMinWidth * this.zoomScale));
+  }
+
+  set minWidth(v) {
+    this.baseMinWidth = v;
+  }
+
+  setZoomScale(scale) {
+    this.zoomScale = scale;
   }
 
   setData(d) {
@@ -28,7 +57,7 @@ class Cols {
     if (this.isHide(i)) return 0;
     const col = this._[i];
     if (col && col.width) {
-      return col.width;
+      return Math.max(1, Math.round(col.width * this.zoomScale));
     }
     return this.width;
   }
@@ -40,7 +69,7 @@ class Cols {
 
   setWidth(ci, width) {
     const col = this.getOrNew(ci);
-    col.width = width;
+    col.width = Math.max(1, Math.round(width / this.zoomScale));
   }
 
   unhide(idx) {

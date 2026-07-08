@@ -85,11 +85,16 @@ body {
 .@{css-prefix}-tooltip {
   font-family: inherit;
   position: absolute;
+  box-sizing: border-box;
   padding: 5px 10px;
   color: #fff;
-  border-radius: 1px;
-  background: rgba(0, 0, 0, 1);
+  border-radius: 6px;
+  background: #2b2e34;
+  box-shadow: 0 6px 16px rgba(35, 38, 45, .18);
   font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: x-spreadsheet-tooltip-in .12s ease-out;
   z-index: 201;
 
   &:before {
@@ -103,8 +108,17 @@ body {
     background: inherit;
     -webkit-transform: rotate(45deg);
     transform: rotate(45deg);
-    z-index: 1;
-    box-shadow: 1px 1px 3px -1px rgba(0, 0, 0, .3);
+  }
+}
+
+@keyframes x-spreadsheet-tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -343,8 +357,100 @@ body {
   z-index: 1;
   overflow: visible;
 
-  img {
-    display: block;
+  &.editable {
+    .@{css-prefix}-sheet-image-item {
+      pointer-events: auto;
+      cursor: move;
+    }
+  }
+
+  .@{css-prefix}-sheet-image-item {
+    box-sizing: border-box;
+    pointer-events: none;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .@{css-prefix}-sheet-image-handle {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      background: rgb(33, 186, 69);
+      border: 1px solid #fff;
+      box-sizing: border-box;
+      pointer-events: auto;
+      display: none;
+      z-index: 1;
+
+      &.@{css-prefix}-sheet-image-handle-nw {
+        left: -3px;
+        top: -3px;
+        cursor: nwse-resize;
+      }
+
+      &.@{css-prefix}-sheet-image-handle-n {
+        left: 50%;
+        top: -3px;
+        margin-left: -3px;
+        cursor: ns-resize;
+      }
+
+      &.@{css-prefix}-sheet-image-handle-ne {
+        right: -3px;
+        top: -3px;
+        cursor: nesw-resize;
+      }
+
+      &.@{css-prefix}-sheet-image-handle-e {
+        right: -3px;
+        top: 50%;
+        margin-top: -3px;
+        cursor: ew-resize;
+      }
+
+      &.@{css-prefix}-sheet-image-handle-se {
+        right: -3px;
+        bottom: -3px;
+        cursor: nwse-resize;
+      }
+
+      &.@{css-prefix}-sheet-image-handle-s {
+        left: 50%;
+        bottom: -3px;
+        margin-left: -3px;
+        cursor: ns-resize;
+      }
+
+      &.@{css-prefix}-sheet-image-handle-sw {
+        left: -3px;
+        bottom: -3px;
+        cursor: nesw-resize;
+      }
+
+      &.@{css-prefix}-sheet-image-handle-w {
+        left: -3px;
+        top: 50%;
+        margin-top: -3px;
+        cursor: ew-resize;
+      }
+    }
+
+    &:hover,
+    &.dragging,
+    &.resizing {
+      outline: 2px dashed rgb(33, 186, 69);
+      outline-offset: -2px;
+
+      .@{css-prefix}-sheet-image-handle {
+        display: block;
+      }
+    }
   }
 }
 
@@ -382,6 +488,15 @@ body {
     border: 2px solid rgb(33, 186, 69);
     background: rgba(33, 186, 69, .1);
     z-index: 5;
+  }
+  &.formula-reference-mode {
+    .@{css-prefix}-selector-area {
+      border-color: rgb(75, 137, 255);
+      background: rgba(75, 137, 255, .12);
+    }
+    .@{css-prefix}-selector-corner {
+      background: rgb(75, 137, 255);
+    }
   }
   .@{css-prefix}-selector-clipboard, .@{css-prefix}-selector-autofill {
     position: absolute;
@@ -434,6 +549,16 @@ body {
 }
 .@{css-prefix}-editor {
   z-index: 20;
+  &.formula-target-mode {
+    .@{css-prefix}-editor-area {
+      border-color: rgb(33, 186, 69);
+      box-shadow:
+        0 0 0 2px rgba(255, 255, 255, .95),
+        0 0 0 5px rgba(33, 186, 69, .32),
+        0 0 12px rgba(33, 186, 69, .38);
+      background-color: rgba(33, 186, 69, .08);
+    }
+  }
   .@{css-prefix}-editor-area {
     position: absolute;
     text-align: left;
@@ -444,21 +569,27 @@ body {
     pointer-events: auto;
     padding: 0 8px;
     background-color: white;
+    overflow: hidden;
 
     textarea {
-      box-sizing: content-box;
+      box-sizing: border-box;
       border: none;
       padding: 0;
       outline: none;
       resize: none;
       text-align: start;
-      overflow-y: auto;
+      overflow: hidden;
+      scrollbar-width: none;
+
+      &::-webkit-scrollbar {
+        display: none;
+      }
       display: block;
       color: black;
       white-space: normal;
       word-wrap: break-word;
       margin: 0;
-      max-width: 400px;
+      max-height: 50vh;
       text-shadow: 0 0 0.35px currentcolor;
     }
 

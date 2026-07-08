@@ -1,5 +1,29 @@
-import { basename, join, parse, resolve } from 'path';
+import { basename, isAbsolute, join, parse, relative, resolve, sep } from 'path';
 import { commands, Uri } from 'vscode';
+
+export function resolveContainedPath(baseDir: string, entryPath: string): string {
+    const base = resolve(baseDir);
+    const target = resolve(base, entryPath.replace(/\\/g, '/'));
+    const rel = relative(base, target);
+    if (rel === '' || rel === '.') {
+        return target;
+    }
+    if (isAbsolute(rel)) {
+        throw new Error(`Unsafe archive entry path: ${entryPath}`);
+    }
+    for (const segment of rel.split(sep)) {
+        if (segment === '..') {
+            throw new Error(`Unsafe archive entry path: ${entryPath}`);
+        }
+    }
+    return target;
+}
+
+export function assertSafeArchiveEntryPaths(baseDir: string, entryPaths: Iterable<string>): void {
+    for (const entryPath of entryPaths) {
+        resolveContainedPath(baseDir, entryPath);
+    }
+}
 
 export function unwrapCrx(data: Buffer): { payload: Buffer; prefix?: Buffer } {
     if (data.length < 12 || data.toString('ascii', 0, 4) !== 'Cr24') {

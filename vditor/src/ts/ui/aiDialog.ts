@@ -370,6 +370,9 @@ export class AIDialog {
         this.refreshEngine();
         this.showPage("main");
         this.overlay.hidden = false;
+        requestAnimationFrame(() => {
+            this.goalEl.focus();
+        });
     }
 
     private close(reason: "cancel" | "submit" = "cancel") {

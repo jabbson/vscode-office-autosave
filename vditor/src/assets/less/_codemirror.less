@@ -58,7 +58,7 @@
 
   .cm-scroller {
     overflow: auto;
-    max-height: var(--cm-block-max-height, 400px);
+    max-height: var(--cm-block-max-height, none);
     scrollbar-gutter: stable;
     font-family: inherit;
     line-height: calc(var(--vscode-editor-font-size, 13px) * 1.35);
@@ -919,7 +919,7 @@
   .cm-editor {
     outline: none;
     min-height: 2em;
-    max-height: var(--cm-block-max-height, 400px);
+    max-height: var(--cm-block-max-height, none);
     border-radius: 6px;
     color: var(--cm-fg-color, var(--vscode-editor-foreground));
   }

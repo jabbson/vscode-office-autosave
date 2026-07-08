@@ -8,6 +8,8 @@ export interface PopupAnchor {
 }
 
 export interface ViewportBounds {
+    top: number;
+    left: number;
     width: number;
     height: number;
 }
@@ -15,20 +17,25 @@ export interface ViewportBounds {
 export type AnchoredDialogPositionVariant = 'default' | 'merge';
 
 export const COMMIT_DETAIL_POPUP_WIDTH = 400;
-const POPUP_MARGIN = 10;
+export const POPUP_MARGIN = 10;
 const MAX_COMMIT_DETAIL_HEIGHT = 600;
+const ANCHOR_TOP_OFFSET = 80;
 
 export function getViewportBounds(container?: HTMLElement | null): ViewportBounds {
     if (container) {
         const rect = container.getBoundingClientRect();
         return {
+            top: rect.top,
+            left: rect.left,
             width: Math.max(0, rect.width),
             height: Math.max(0, rect.height),
         };
     }
     return {
+        top: 0,
+        left: 0,
         width: document.documentElement.clientWidth,
-        height: document.documentElement.clientHeight,
+        height: window.innerHeight,
     };
 }
 
@@ -58,6 +65,31 @@ export function computeAnchoredDialogPosition(
     return { left, top };
 }
 
+function computePopupTop(
+    anchorY: number,
+    popupHeight: number,
+    bodyTop: number,
+    bodyBottom: number,
+): number {
+    const minTop = bodyTop + POPUP_MARGIN;
+    const maxBottom = bodyBottom - POPUP_MARGIN;
+    const maxTop = Math.max(minTop, maxBottom - popupHeight);
+    const preferredTop = anchorY - ANCHOR_TOP_OFFSET;
+
+    if (preferredTop >= minTop && preferredTop + popupHeight <= maxBottom) {
+        return preferredTop;
+    }
+
+    let top = preferredTop;
+    if (top + popupHeight > maxBottom) {
+        top = maxBottom - popupHeight;
+    }
+    if (top < minTop) {
+        top = minTop;
+    }
+    return Math.min(Math.max(top, minTop), maxTop);
+}
+
 export function computeCommitDetailPopupPosition(
     anchor: PopupAnchor,
     popupHeight: number,
@@ -65,24 +97,31 @@ export function computeCommitDetailPopupPosition(
     bounds?: ViewportBounds,
 ): CommitDetailPopupLayout {
     const viewport = bounds ?? getViewportBounds();
-    const viewportMaxHeight = Math.max(160, viewport.height - POPUP_MARGIN * 2);
-    const effectiveHeight = Math.min(popupHeight, viewportMaxHeight, MAX_COMMIT_DETAIL_HEIGHT);
-
-    const preferredTop = Math.max(POPUP_MARGIN, anchor.y - 80);
-    const maxTop = Math.max(POPUP_MARGIN, viewport.height - effectiveHeight - POPUP_MARGIN);
-    const top = Math.min(preferredTop, maxTop);
-
-    const preferredRight = anchor.x + 100 + COMMIT_DETAIL_POPUP_WIDTH;
-    const preferredLeft = preferredRight - popupWidth;
-    const maxLeft = Math.max(POPUP_MARGIN, viewport.width - popupWidth - POPUP_MARGIN);
-    const left = Math.min(Math.max(POPUP_MARGIN, preferredLeft), maxLeft);
+    const bodyTop = viewport.top;
+    const bodyBottom = viewport.top + viewport.height;
+    const bodyRight = viewport.left + viewport.width;
 
     const maxHeight = Math.min(
         MAX_COMMIT_DETAIL_HEIGHT,
-        Math.max(160, viewport.height - top - POPUP_MARGIN),
+        Math.max(160, viewport.height - POPUP_MARGIN * 2),
     );
+    const effectiveHeight = Math.min(popupHeight, maxHeight);
 
-    return { left, top, maxHeight, height: effectiveHeight };
+    const top = computePopupTop(anchor.y, effectiveHeight, bodyTop, bodyBottom);
+
+    const preferredRight = anchor.x + 100 + COMMIT_DETAIL_POPUP_WIDTH;
+    const preferredLeft = preferredRight - popupWidth;
+    const minLeft = viewport.left + POPUP_MARGIN;
+    const maxLeft = Math.max(minLeft, bodyRight - popupWidth - POPUP_MARGIN);
+    const left = Math.min(Math.max(preferredLeft, minLeft), maxLeft);
+
+    const maxHeightFromTop = Math.min(
+        MAX_COMMIT_DETAIL_HEIGHT,
+        Math.max(160, bodyBottom - top - POPUP_MARGIN),
+    );
+    const height = Math.min(effectiveHeight, maxHeightFromTop);
+
+    return { left, top, maxHeight: maxHeightFromTop, height };
 }
 
 export function anchorFromMouseEvent(

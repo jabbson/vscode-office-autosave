@@ -1,5 +1,6 @@
 import { getExtensionResourceRoots } from '@/common/extensionResource';
 import { handleClass } from '@/provider/handlers/classHandler';
+import { TelemetryService } from '@/service/telemetryService';
 import * as vscode from 'vscode';
 
 /**
@@ -24,5 +25,6 @@ export class ClassViewerProvider implements vscode.CustomReadonlyEditorProvider 
 			localResourceRoots: [...getExtensionResourceRoots(this.context), folderPath],
 		};
 		handleClass(document.uri, webviewPanel);
+		TelemetryService.get()?.trackViewOpen('class');
 	}
 }

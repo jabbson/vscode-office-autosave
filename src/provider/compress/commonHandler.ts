@@ -6,6 +6,7 @@ import { Uri, workspace } from 'vscode';
 import { emitFileOfficeOpen, emitVirtualOfficeOpen, isVirtualUri } from '@/provider/handlers/officeContent';
 
 const fileSaveTimes: Record<string, number> = {};
+const INTERNAL_SAVE_CHANGE_WINDOW_MS = 1500;
 
 function buildDefaultXlsxUri(uri: Uri): Uri {
     const { dir, name } = parse(uri.fsPath);
@@ -18,7 +19,7 @@ function buildDefaultXlsxUri(uri: Uri): Uri {
 
 export function shouldSkipFileChange(uri: Uri): boolean {
     const lastSaveTime = fileSaveTimes[uri.toString()];
-    return !!(lastSaveTime && Date.now() - lastSaveTime < 100);
+    return !!(lastSaveTime && Date.now() - lastSaveTime < INTERNAL_SAVE_CHANGE_WINDOW_MS);
 }
 
 function setDirty(handler: Handler, uri: Uri, dirty: boolean) {
@@ -61,6 +62,7 @@ export function handleCommonEvent(uri: Uri, handler: Handler, options?: { skipOp
                 handler.emit('saveAs', { content: [...res] });
                 return;
             }
+            fileSaveTimes[uri.toString()] = Date.now();
             await workspace.fs.writeFile(uri, res)
             fileSaveTimes[uri.toString()] = Date.now();
             setDirty(handler, uri, false);
@@ -90,6 +92,7 @@ export function handleCommonEvent(uri: Uri, handler: Handler, options?: { skipOp
                 filters: { [info.label]: info.exts },
             });
             if (!target) return;
+            fileSaveTimes[target.toString()] = Date.now();
             await workspace.fs.writeFile(target, res);
             fileSaveTimes[target.toString()] = Date.now();
             setDirty(handler, uri, false);

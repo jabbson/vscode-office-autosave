@@ -60,7 +60,7 @@ function moreResize() {
   el.css('width', `${this.widthFn()}px`);
   const elBox = el.box();
 
-  let sumWidth = 160;
+  let sumWidth = 60;
   let sumWidth2 = 12;
   const list1 = [];
   const list2 = [];
@@ -164,10 +164,10 @@ export default class Toolbar {
       ],
       buildDivider(),
       [
-        this.formulaEl = new Formula(),
-        this.autofilterEl = new Autofilter(),
-        this.freezeEl = new Freeze(),
         this.findEl = new Find(),
+        this.autofilterEl = new Autofilter(),
+        this.formulaEl = new Formula(),
+        this.freezeEl = new Freeze(),
       ],
     ];
 

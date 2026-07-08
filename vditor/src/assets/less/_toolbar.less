@@ -201,8 +201,9 @@
   top: calc(100% + 8px);
   right: 30px;
   z-index: 1000;
-  align-items: center;
-  gap: 4px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
   padding: 5px 6px;
   background: var(--panel-background-color);
   border: 1px solid color-mix(in srgb, var(--toolbar-icon-color) 18%, transparent);
@@ -210,6 +211,17 @@
   box-shadow: 0 4px 16px color-mix(in srgb, #000 18%, transparent),
               0 1px 4px color-mix(in srgb, #000 10%, transparent);
   animation: vditor-popup-in 0.15s ease;
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+
+    &--replace {
+      justify-content: flex-end;
+    }
+  }
 
   &__input {
     width: 220px;
@@ -221,6 +233,11 @@
     border-radius: 5px;
     box-sizing: border-box;
     .vditor-popover-field();
+
+    &--replace {
+      flex: 1;
+      min-width: 180px;
+    }
   }
 
   &__count {
@@ -237,12 +254,14 @@
   }
 
   &__nav,
-  &__close {
+  &__close,
+  &__option,
+  &__action {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
+    min-width: 22px;
+    height: 24px;
     padding: 0;
     border: none;
     border-radius: 4px;
@@ -256,6 +275,28 @@
       background: color-mix(in srgb, var(--toolbar-icon-color) 10%, transparent);
     }
   }
+
+  &__option,
+  &__action {
+    padding: 0 8px;
+    font-size: 12px;
+    border: 1px solid color-mix(in srgb, var(--toolbar-icon-color) 18%, transparent);
+    background: var(--vscode-button-secondaryBackground, color-mix(in srgb, var(--toolbar-icon-color) 6%, transparent));
+  }
+
+  &__option {
+    font-weight: 600;
+
+    &--active {
+      color: var(--toolbar-current-color, var(--link-color));
+      background: color-mix(in srgb, var(--toolbar-current-color, var(--link-color)) 14%, transparent);
+      border-color: color-mix(in srgb, var(--toolbar-current-color, var(--link-color)) 40%, transparent);
+    }
+  }
+
+  &__action {
+    white-space: nowrap;
+  }
 }
 
 .vditor-find-highlight {
@@ -264,9 +305,20 @@
   border-radius: 3px;
 
   &--current {
-    outline: 2px solid var(--link-color, #4285f4);
+    background: var(--vscode-editor-findMatchBackground, var(--vscode-editor-findMatchHighlightBackground, #ffd700));
+    outline: 2px solid var(--vscode-editor-findMatchBorder, var(--link-color, #4285f4));
     outline-offset: 1px;
   }
+}
+
+::highlight(vditor-find-match) {
+  background-color: var(--vscode-editor-findMatchHighlightBackground, #ffd700);
+  color: var(--vscode-editor-findMatchHighlightForeground, inherit);
+}
+
+::highlight(vditor-find-current) {
+  background-color: var(--vscode-editor-findMatchBackground, var(--vscode-editor-findMatchHighlightBackground, #ffd700));
+  color: var(--vscode-editor-findMatchHighlightForeground, inherit);
 }
 
 .vditor-sponsor-toolbar-icon {

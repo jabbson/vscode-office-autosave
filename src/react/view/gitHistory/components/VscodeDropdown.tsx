@@ -14,6 +14,8 @@ interface VscodeDropdownProps {
     allLabel?: string;
     filterPlaceholder?: string;
     showAllOption?: boolean;
+    variant?: 'default' | 'toolbar';
+    triggerLabel?: string;
     onChange: (value: string | string[] | null) => void;
 }
 
@@ -34,6 +36,8 @@ export default function VscodeDropdown({
     allLabel = 'All',
     filterPlaceholder,
     showAllOption = true,
+    variant = 'default',
+    triggerLabel,
     onChange,
 }: VscodeDropdownProps) {
     const [open, setOpen] = useState(false);
@@ -114,22 +118,29 @@ export default function VscodeDropdown({
         return (typeof value === 'string' ? value : '') === optionValue;
     };
 
+    const isToolbarVariant = variant === 'toolbar';
+    const triggerText = triggerLabel ?? displayText;
+    const hasSelection = multiple
+        ? Array.isArray(value) && value.length > 0 && value.length < options.length
+        : !!value;
+
     return (
         <div
             ref={rootRef}
-            className={`vscode-dropdown${open ? ' open' : ''}${multiple ? ' multiple' : ''}`}
+            className={`vscode-dropdown${open ? ' open' : ''}${multiple ? ' multiple' : ''}${isToolbarVariant ? ' toolbar' : ''}${hasSelection ? ' has-selection' : ''}`}
         >
-            <span className="vscode-dropdown-label">{label}</span>
+            {!isToolbarVariant && <span className="vscode-dropdown-label">{label}</span>}
             <div className="vscode-dropdown-control">
                 <button
                     type="button"
                     className="vscode-dropdown-trigger"
+                    title={displayText}
                     aria-expanded={open}
                     aria-haspopup="listbox"
                     aria-controls={listId}
                     onClick={() => setOpen((v) => !v)}
                 >
-                    <span className="vscode-dropdown-value" title={displayText}>{displayText}</span>
+                    <span className="vscode-dropdown-value">{triggerText}</span>
                     <ChevronDown open={open} />
                 </button>
                 {open && (

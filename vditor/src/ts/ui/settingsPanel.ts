@@ -23,6 +23,7 @@ import {
     CODE_BLOCK_MAX_HEIGHT_KEY,
     CODE_BLOCK_MAX_HEIGHT_DEFAULT,
     CODE_BLOCK_MAX_HEIGHT_OPTIONS,
+    TYPEWRITER_MODE_KEY,
     getAIPrompts,
     setAIPrompts,
     AIPrompt,
@@ -295,6 +296,7 @@ export const buildSettingsPanelHTML = (vditor: IVditor) => {
     const imgMaxWidth = getGlobalLocalStorageSetting<number>(IMAGE_MAX_WIDTH_KEY, IMAGE_MAX_WIDTH_DEFAULT);
     const imgMaxHeight = getGlobalLocalStorageSetting<number>(IMAGE_MAX_HEIGHT_KEY, IMAGE_MAX_HEIGHT_DEFAULT);
     const codeBlockMaxHeight = getGlobalLocalStorageSetting<string>(CODE_BLOCK_MAX_HEIGHT_KEY, CODE_BLOCK_MAX_HEIGHT_DEFAULT) ?? CODE_BLOCK_MAX_HEIGHT_DEFAULT;
+    const typewriterMode = getGlobalLocalStorageSetting<boolean>(TYPEWRITER_MODE_KEY, false) === true;
     return `<div class="${SETTINGS_PANEL_CLASS}">
         <div class="${SETTINGS_PANEL_CLASS}__section">
             <div class="${SETTINGS_PANEL_CLASS}__title">Edit Mode</div>
@@ -314,6 +316,7 @@ export const buildSettingsPanelHTML = (vditor: IVditor) => {
                 ${buildDropdownHTML(BOLD_COLOR_KEY, i18n.boldColor ?? "Bold Color", getBoldColorOptions(), boldColor)}
                 ${buildDropdownHTML(PAGE_WIDTH_KEY, i18n.pageWidth, PAGE_WIDTH_OPTIONS, pageWidth)}
                 ${buildLineHeightStepperHTML(lineHeight)}
+                ${buildToggleHTML(TYPEWRITER_MODE_KEY, i18n.typewriterMode ?? "Typewriter Mode", typewriterMode)}
             </div>
         </div>
         <div class="${SETTINGS_PANEL_CLASS}__section">
@@ -343,6 +346,21 @@ export const refreshSettingsPanel = (panelElement: HTMLElement, vditor: IVditor)
     }
 };
 
+const isAISettingsAddRowOpen = (panelElement: HTMLElement, selector: string) => {
+    const row = panelElement.querySelector<HTMLElement>(selector);
+    return !!row && row.style.display !== "none";
+};
+
+export const hasOpenAISettingsPromptForm = (panelElement: HTMLElement) => {
+    return !!panelElement.dataset.editingPromptId
+        || isAISettingsAddRowOpen(panelElement, "[data-ai-add-row]");
+};
+
+export const hasOpenAISettingsModelForm = (panelElement: HTMLElement) => {
+    return !!panelElement.dataset.editingModelId
+        || isAISettingsAddRowOpen(panelElement, "[data-ai-add-model-row]");
+};
+
 export const refreshAISettingsToolbarPanel = (vditor: IVditor) => {
     const aiItem = vditor.toolbar.elements["ai-settings"];
     if (!aiItem) return;
@@ -350,8 +368,8 @@ export const refreshAISettingsToolbarPanel = (vditor: IVditor) => {
     if (!panelElement || panelElement.style.display !== "block") return;
     const promptsEl = panelElement.querySelector("[data-ai-prompts]");
     const modelsEl = panelElement.querySelector("[data-ai-models]");
-    if (promptsEl) promptsEl.outerHTML = buildAIPromptsHTML();
-    if (modelsEl) modelsEl.outerHTML = buildAIModelsHTML();
+    if (promptsEl && !hasOpenAISettingsPromptForm(panelElement)) promptsEl.outerHTML = buildAIPromptsHTML();
+    if (modelsEl && !hasOpenAISettingsModelForm(panelElement)) modelsEl.outerHTML = buildAIModelsHTML();
 };
 
 export const refreshSettingsToolbarPanel = (vditor: IVditor) => {

@@ -1,10 +1,12 @@
 import ExcelJS from '@cweijan/exceljs';
+import JSZip from 'jszip';
 import { handler } from "../../util/vscode";
 import * as XLSX from 'xlsx';
 import Spreadsheet from './x-spreadsheet/index';
 import type { RowData, SheetData } from './x-spreadsheet/index';
 import { CsvEncoding, encodeCsvText } from './csvEncoding';
 import { DEFAULT_ROW_HEIGHT_PX, freezeExprToExcelView, pxToExcelRowHeight } from './excel_meta';
+import { patchWorksheetSortStateXml } from './excel_sort_state';
 import { applySpreadsheetStyle } from './excel_styles';
 import { hyperlinkKey, writeCellHyperlink, type SpreadsheetHyperlink } from './excel_hyperlink';
 import { writeWorksheetValidations } from './excel_validation';
@@ -135,6 +137,17 @@ async function emitSave(buffer: Uint8Array, options?: ExportOptions) {
     handler.emit('save', content);
 }
 
+async function patchWorkbookSortStates(buffer: Uint8Array, sheets: SheetData[]) {
+    const zip = await JSZip.loadAsync(buffer);
+    for (let i = 0; i < sheets.length; i += 1) {
+        const file = zip.file(`xl/worksheets/sheet${i + 1}.xml`);
+        if (!file) continue;
+        const xml = await file.async('string');
+        zip.file(`xl/worksheets/sheet${i + 1}.xml`, patchWorksheetSortStateXml(xml, sheets[i].autofilter));
+    }
+    return new Uint8Array(await zip.generateAsync({ type: 'uint8array' }));
+}
+
 async function exportWithExcelJs(sheets: SheetData[], options?: ExportOptions) {
     const workbook = new ExcelJS.Workbook();
     for (let i = 0; i < sheets.length; i += 1) {
@@ -142,8 +155,9 @@ async function exportWithExcelJs(sheets: SheetData[], options?: ExportOptions) {
         const worksheet = workbook.addWorksheet(sheetData.name || `Sheet${i + 1}`);
         await writeSheetToExcelJs(worksheet, workbook, sheetData);
     }
-    const buffer = await workbook.xlsx.writeBuffer();
-    await emitSave(new Uint8Array(buffer), options);
+    const buffer = new Uint8Array(await workbook.xlsx.writeBuffer());
+    const patched = await patchWorkbookSortStates(buffer, sheets);
+    await emitSave(patched, options);
 }
 
 function applyColWidths(ws: XLSX.WorkSheet, xws: SheetData) {

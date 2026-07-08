@@ -1,4 +1,5 @@
 import format from 'date-format';
+import { resolveContainedPath } from '@/service/compress/archiveUtils';
 import { mkdirSync, writeFileSync } from 'fs';
 import { resolve } from 'path';
 import { Parser, ReadEntry } from 'tar';
@@ -77,7 +78,7 @@ export async function extractTarEntries(data: Buffer, destDir: string, gzip: boo
     });
 
     for (const file of fileContents) {
-        const filePath = resolve(destDir, file.path);
+        const filePath = resolveContainedPath(destDir, file.path);
         mkdirSync(resolve(filePath, '..'), { recursive: true });
         writeFileSync(filePath, Buffer.concat(file.chunks));
     }

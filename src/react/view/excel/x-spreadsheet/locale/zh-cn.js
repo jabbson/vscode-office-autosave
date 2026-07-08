@@ -70,6 +70,7 @@ export default {
     normal: '正常',
     text: '文本',
     number: '数值',
+    numberPlain: '数值（无分隔）',
     percent: '百分比',
     rmb: '人民币',
     usd: '美元',
@@ -146,7 +147,7 @@ export default {
     exportOdsLabel: 'OpenDocument (.ods)',
     exportOdsDesc: '兼容 LibreOffice / WPS',
     switchToLightMode: '切换到浅色模式',
-    switchToDarkMode: '切换到深色模式',
+    switchToDarkMode: '切换到自适应模式（跟随 VS Code 主题）',
   },
   findReplace: {
     title: '查找',

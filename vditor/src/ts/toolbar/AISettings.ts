@@ -1,4 +1,11 @@
-import { buildAIPromptsHTML, buildAIModelsHTML, nameFromUrl, SETTINGS_PANEL_CLASS } from "../ui/settingsPanel";
+import {
+    buildAIPromptsHTML,
+    buildAIModelsHTML,
+    hasOpenAISettingsModelForm,
+    hasOpenAISettingsPromptForm,
+    nameFromUrl,
+    SETTINGS_PANEL_CLASS,
+} from "../ui/settingsPanel";
 import { getEventName } from "../util/compatibility";
 import { MenuItem } from "./MenuItem";
 import { toggleSubMenu } from "./setToolbar";
@@ -7,6 +14,7 @@ import {
     getAIModels, setAIModels,
 } from "../util/globalLocalStorageSettings";
 import { showConfirm } from "../util/confirm";
+import { telemetry } from "../util/telemetry";
 export class AISettings extends MenuItem {
     public element: HTMLElement;
     private vditor: IVditor;
@@ -22,6 +30,9 @@ export class AISettings extends MenuItem {
         this.element.appendChild(panelElement);
 
         actionBtn.addEventListener(getEventName(), (_event: Event) => {
+            if (hasOpenAISettingsPromptForm(panelElement) || hasOpenAISettingsModelForm(panelElement)) {
+                return;
+            }
             panelElement.innerHTML = this.buildPanelHTML();
         }, true);
 
@@ -31,6 +42,7 @@ export class AISettings extends MenuItem {
                 delete panelElement.dataset.editingPromptId;
                 clearInputs(panelElement, ["[data-ai-add-name]", "[data-ai-add-content]"]);
                 toggleAddRow(panelElement, "[data-ai-add-row]", "[data-ai-new-prompt]", true);
+                scrollAddRowIntoView(panelElement, "[data-ai-add-row]");
                 panelElement.querySelector<HTMLInputElement>("[data-ai-add-name]")?.focus();
                 stop(event); return;
             }
@@ -52,6 +64,7 @@ export class AISettings extends MenuItem {
                         delete panelElement.dataset.editingPromptId;
                     } else {
                         prompts.push({ id: Date.now().toString(), name, content });
+                        telemetry(this.vditor, "markdown.ai.addPrompt", { source: "settings" });
                     }
                     setAIPrompts(prompts);
                     panelElement.querySelector("[data-ai-prompts]")!.outerHTML = buildAIPromptsHTML();
@@ -69,6 +82,7 @@ export class AISettings extends MenuItem {
                 if (nameEl) nameEl.value = p.name;
                 if (contentEl) contentEl.value = p.content;
                 toggleAddRow(panelElement, "[data-ai-add-row]", "[data-ai-new-prompt]", true);
+                scrollAddRowIntoView(panelElement, "[data-ai-add-row]");
                 nameEl?.focus();
                 stop(event); return;
             }
@@ -92,6 +106,7 @@ export class AISettings extends MenuItem {
                 const formatEl = panelElement.querySelector<HTMLSelectElement>("[data-ai-add-model-format]");
                 if (formatEl) formatEl.value = "auto";
                 toggleAddRow(panelElement, "[data-ai-add-model-row]", "[data-ai-new-model]", true);
+                scrollAddRowIntoView(panelElement, "[data-ai-add-model-row]");
                 panelElement.querySelector<HTMLInputElement>("[data-ai-add-model-url]")?.focus();
                 stop(event); return;
             }
@@ -117,6 +132,7 @@ export class AISettings extends MenuItem {
                         delete panelElement.dataset.editingModelId;
                     } else {
                         models.push({ id: Date.now().toString(), name, url, key, model, format });
+                        telemetry(this.vditor, "markdown.ai.addModel", { source: "settings" });
                     }
                     setAIModels(models);
                     panelElement.querySelector("[data-ai-models]")!.outerHTML = buildAIModelsHTML();
@@ -140,6 +156,7 @@ export class AISettings extends MenuItem {
                 if (modelEl) modelEl.value = m.model || "";
                 if (formatEl) formatEl.value = m.format || "auto";
                 toggleAddRow(panelElement, "[data-ai-add-model-row]", "[data-ai-new-model]", true);
+                scrollAddRowIntoView(panelElement, "[data-ai-add-model-row]");
                 urlEl?.focus();
                 stop(event); return;
             }
@@ -190,6 +207,17 @@ function clearInputs(panel: HTMLElement, selectors: string[]) {
     selectors.forEach(sel => {
         const el = panel.querySelector<HTMLInputElement | HTMLTextAreaElement>(sel);
         if (el) el.value = "";
+    });
+}
+
+function scrollAddRowIntoView(panel: HTMLElement, rowSelector: string) {
+    requestAnimationFrame(() => {
+        const settingsPanel = panel.querySelector<HTMLElement>(`.${SETTINGS_PANEL_CLASS}`);
+        const row = panel.querySelector<HTMLElement>(rowSelector);
+        if (!settingsPanel || !row) {
+            return;
+        }
+        row.scrollIntoView({ block: "nearest", behavior: "smooth" });
     });
 }
 

@@ -10,7 +10,12 @@
 
 .vditor {
   &-reset {
-    padding: 0 5%;
+    padding: 0 60px;
+
+    .vditor[data-page-width-mode="fixed"] & {
+      padding-left: 0;
+      padding-right: 0;
+    }
 
     &--anchor {
       padding-left: 20px;

@@ -15,6 +15,7 @@ export type FileHistorySplitLayout = 'vertical' | 'horizontal';
 export type GitHistoryColorMode = 'adaptive' | 'light';
 
 export const DEFAULT_COLOR_MODE: GitHistoryColorMode = 'adaptive';
+const COLOR_MODE_KEY = 'office.gitHistory.colorMode';
 
 export const DEFAULT_FILE_HISTORY_SPLIT_LAYOUT: FileHistorySplitLayout = 'vertical';
 
@@ -61,10 +62,16 @@ export function saveFileHistorySplitLayout(layout: FileHistorySplitLayout): void
 }
 
 export function getColorMode(): GitHistoryColorMode {
-    const state = loadGitHistoryState();
-    return state.colorMode === 'light' ? 'light' : DEFAULT_COLOR_MODE;
+    try {
+        const value = localStorage.getItem(COLOR_MODE_KEY);
+        return value === 'light' ? 'light' : DEFAULT_COLOR_MODE;
+    } catch {
+        return DEFAULT_COLOR_MODE;
+    }
 }
 
 export function saveColorMode(mode: GitHistoryColorMode): void {
-    saveGitHistoryState({ colorMode: mode });
+    try {
+        localStorage.setItem(COLOR_MODE_KEY, mode);
+    } catch { }
 }

@@ -1,8 +1,10 @@
 import ExcelJS from '@cweijan/exceljs';
+import JSZip from 'jszip';
 import * as XLSX from 'xlsx';
 import { inferSchema, initParser } from 'udsv';
 import { decodeCsvBuffer } from './csvEncoding';
 import { DEFAULT_ROW_HEIGHT_PX, excelFreezeToExpr, excelRowHeightToPx, readAutofilterRef } from './excel_meta';
+import { readWorksheetSortStateXml } from './excel_sort_state';
 import { excelJsCellToStyle, StyleRegistry } from './excel_styles';
 import { mergeHyperlinkMaps, readCellHyperlink } from './excel_hyperlink';
 import { readWorksheetBackgroundImage, readWorksheetImages } from './excel_images';
@@ -15,6 +17,14 @@ import {
 import type { CellData, SheetData } from './x-spreadsheet/index';
 
 type RowMap = NonNullable<SheetData['rows']>;
+
+type ExcelJsWorksheetWithMerges = ExcelJS.Worksheet & {
+    _merges?: Record<string, string | { range?: string }>;
+    model: ExcelJS.Worksheet['model'] & {
+        mergeCells?: string[];
+        merges?: string[];
+    };
+};
 
 export interface ExcelData {
     sheets: SheetData[];
@@ -49,6 +59,42 @@ const calculateColWidth = (rows: any[], colIndex: number): number => {
 const excelColWidthToPx = (width?: number) => {
     if (width == null) return null;
     return Math.round(width * 7 + 5);
+};
+
+const normalizeMergeRange = (merge: unknown): string | null => {
+    if (typeof merge === 'string') return merge;
+    if (merge && typeof merge === 'object' && 'range' in merge) {
+        const range = (merge as { range?: unknown }).range;
+        return typeof range === 'string' ? range : null;
+    }
+    return null;
+};
+
+const readWorksheetMerges = (worksheet: ExcelJS.Worksheet): string[] => {
+    const ws = worksheet as ExcelJsWorksheetWithMerges;
+    const mergeCandidates = [
+        ...(ws.model?.merges ?? []),
+        ...(ws.model?.mergeCells ?? []),
+        ...Object.values(ws._merges ?? {}),
+    ];
+    const merges = mergeCandidates
+        .map(normalizeMergeRange)
+        .filter((it): it is string => Boolean(it));
+    return Array.from(new Set(merges));
+};
+
+const expandSizeForMerge = (merge: string, size: { maxRow: number; maxCols: number }) => {
+    const range = XLSX.utils.decode_range(merge);
+    size.maxRow = Math.max(size.maxRow, range.e.r + 1);
+    size.maxCols = Math.max(size.maxCols, range.e.c + 1);
+};
+
+const readSheetJsMerges = (worksheet: XLSX.WorkSheet) => (worksheet['!merges'] ?? [])
+    .map(merge => XLSX.utils.encode_range(merge));
+
+const expandSizeForSheetJsMerge = (merge: XLSX.Range, size: { maxRow: number; maxCols: number }) => {
+    size.maxRow = Math.max(size.maxRow, merge.e.r + 1);
+    size.maxCols = Math.max(size.maxCols, merge.e.c + 1);
 };
 
 const buildCsvCols = (rows: any[][], colCount: number) => {
@@ -125,6 +171,27 @@ const applyRowHeight = (rows: RowMap, ri: number, excelRow: ExcelJS.Row) => {
     }
 };
 
+const readWorkbookSortStateXml = async (buffer: ArrayBuffer) => {
+    const zip = await JSZip.loadAsync(buffer);
+    const entries = new Map<number, ReturnType<typeof readWorksheetSortStateXml>>();
+    const worksheetFiles = Object.keys(zip.files)
+        .map((name) => {
+            const match = /^xl\/worksheets\/sheet(\d+)\.xml$/i.exec(name);
+            return match ? { index: Number(match[1]) - 1, name } : null;
+        })
+        .filter((it): it is { index: number; name: string } => Boolean(it))
+        .sort((a, b) => a.index - b.index);
+
+    for (let i = 0; i < worksheetFiles.length; i += 1) {
+        const file = worksheetFiles[i];
+        const xml = await zip.file(file.name)?.async('string');
+        if (!xml) continue;
+        entries.set(file.index, readWorksheetSortStateXml(xml));
+    }
+
+    return entries;
+};
+
 const convertExcelJsWorksheet = (worksheet: ExcelJS.Worksheet, workbook: ExcelJS.Workbook): Pick<SheetData, 'rows' | 'cols' | 'styles' | 'merges' | 'freeze' | 'autofilter' | 'hyperlinks' | 'validations' | 'sheetProtection' | 'images' | 'backgroundImage'> => {
     const rows: RowMap = {};
     const styleRegistry = new StyleRegistry();
@@ -172,10 +239,15 @@ const convertExcelJsWorksheet = (worksheet: ExcelJS.Worksheet, workbook: ExcelJS
         if (rowNumber > maxRow) maxRow = rowNumber;
     }
 
+    const merges = readWorksheetMerges(worksheet);
+    const sheetSize = { maxRow, maxCols };
+    merges.forEach(merge => expandSizeForMerge(merge, sheetSize));
+    maxRow = sheetSize.maxRow;
+    maxCols = sheetSize.maxCols;
+
     const colCount = Math.max(maxCols, worksheet.columnCount || 0);
     const cols = buildColsFromWorksheet(worksheet, colCount);
     const styles = styleRegistry.getStyles();
-    const merges = worksheet.model.merges ?? [];
     const sheetExtras = readSheetExtras(worksheet);
     const hyperlinks = mergeHyperlinkMaps(...hyperlinkParts);
     const validations = readWorksheetValidations(worksheet);
@@ -196,13 +268,20 @@ const convertExcelJsWorksheet = (worksheet: ExcelJS.Worksheet, workbook: ExcelJS
     };
 };
 
-const convertExcelJsWorkbook = (workbook: ExcelJS.Workbook): ExcelData => {
+const convertExcelJsWorkbook = (
+    workbook: ExcelJS.Workbook,
+    sortStateXmlMap?: Map<number, ReturnType<typeof readWorksheetSortStateXml>>,
+): ExcelData => {
     const sheets: SheetData[] = [];
     let maxLength = 0;
     let maxCols = 26;
 
-    for (const worksheet of workbook.worksheets) {
+    workbook.worksheets.forEach((worksheet, index) => {
         const converted = convertExcelJsWorksheet(worksheet, workbook);
+        const xmlAutofilter = sortStateXmlMap?.get(index);
+        if (xmlAutofilter?.sort && converted.autofilter?.ref) {
+            converted.autofilter.sort = xmlAutofilter.sort;
+        }
         const rowCount = converted.rows?.len ?? 0;
         if (maxLength < rowCount) maxLength = rowCount;
 
@@ -223,7 +302,7 @@ const convertExcelJsWorkbook = (workbook: ExcelJS.Workbook): ExcelData => {
             ...(converted.images ? { images: converted.images } : {}),
             ...(converted.backgroundImage ? { backgroundImage: converted.backgroundImage } : {}),
         });
-    }
+    });
 
     return { sheets, maxLength, maxCols };
 };
@@ -231,7 +310,8 @@ const convertExcelJsWorkbook = (workbook: ExcelJS.Workbook): ExcelData => {
 const loadWithExcelJs = async (buffer: ArrayBuffer): Promise<ExcelData> => {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer);
-    return convertExcelJsWorkbook(workbook);
+    const sortStateXmlMap = await readWorkbookSortStateXml(buffer);
+    return convertExcelJsWorkbook(workbook, sortStateXmlMap);
 };
 
 const sheetJsColWidthToPx = (col?: XLSX.ColInfo) => {
@@ -259,7 +339,7 @@ const formatSheetJsCell = (cell: XLSX.CellObject) => {
     return String(cell.v);
 };
 
-const convertSheetJsWorksheet = (worksheet: XLSX.WorkSheet): Pick<SheetData, 'rows' | 'cols'> => {
+const convertSheetJsWorksheet = (worksheet: XLSX.WorkSheet): Pick<SheetData, 'rows' | 'cols' | 'merges'> => {
     const rows: RowMap = {};
     let maxCols = 0;
     let maxRow = 0;
@@ -288,10 +368,17 @@ const convertSheetJsWorksheet = (worksheet: XLSX.WorkSheet): Pick<SheetData, 'ro
         }
     }
 
+    const sheetSize = { maxRow, maxCols };
+    (worksheet['!merges'] ?? []).forEach(merge => expandSizeForSheetJsMerge(merge, sheetSize));
+    maxRow = sheetSize.maxRow;
+    maxCols = sheetSize.maxCols;
+
     const colCount = Math.max(maxCols, range.e.c - range.s.c + 1);
+    const merges = readSheetJsMerges(worksheet);
     return {
         rows: { len: maxRow, ...rows },
         cols: { len: colCount, ...buildColsFromSheetJsWorksheet(worksheet, colCount) },
+        merges: merges.length > 0 ? merges : undefined,
     };
 };
 
@@ -312,6 +399,7 @@ const convertSheetJsWorkbook = (workbook: XLSX.WorkBook): ExcelData => {
             name: sheetName,
             rows: converted.rows,
             cols: converted.cols,
+            ...(converted.merges ? { merges: converted.merges } : {}),
         });
     }
 

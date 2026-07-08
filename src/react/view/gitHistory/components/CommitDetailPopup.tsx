@@ -7,6 +7,7 @@ import {
     COMMIT_DETAIL_POPUP_WIDTH,
     computeCommitDetailPopupPosition,
     getViewportBounds,
+    POPUP_MARGIN,
     type CommitDetailPopupLayout,
     type PopupAnchor,
 } from '../util/commitDetailPopup';
@@ -15,6 +16,18 @@ import CommitDetailFileView from './CommitDetailFileView';
 
 const { Text } = Typography;
 const COMMIT_INFO_POPUP_WIDTH = 480;
+
+function applyPopupLayout(
+    popup: HTMLDivElement,
+    layout: CommitDetailPopupLayout,
+    width: number,
+): void {
+    popup.style.left = `${layout.left}px`;
+    popup.style.top = `${layout.top}px`;
+    popup.style.width = `${width}px`;
+    popup.style.maxHeight = `${layout.maxHeight}px`;
+    popup.style.height = `${layout.height}px`;
+}
 
 interface CommitDetailPopupProps {
     anchor: PopupAnchor;
@@ -35,7 +48,15 @@ interface CommitDetailPopupProps {
 }
 
 function formatLongDate(timestamp: number): string {
-    return new Date(timestamp * 1000).toLocaleString();
+    const date = new Date(timestamp * 1000);
+    const pad2 = (value: number) => value.toString().padStart(2, '0');
+    const y = date.getFullYear();
+    const m = pad2(date.getMonth() + 1);
+    const d = pad2(date.getDate());
+    const hh = pad2(date.getHours());
+    const mm = pad2(date.getMinutes());
+    const ss = pad2(date.getSeconds());
+    return `${y}-${m}-${d} ${hh}:${mm}:${ss}`;
 }
 
 function abbrevHash(hash: string): string {
@@ -195,6 +216,14 @@ export default function CommitDetailPopup({
 
     useLayoutEffect(() => {
         const popup = popupRef.current;
+        if (!popup) {
+            return;
+        }
+        applyPopupLayout(popup, layout, popupWidth);
+    }, [layout, popupWidth]);
+
+    useLayoutEffect(() => {
+        const popup = popupRef.current;
         const container = containerRef.current;
         if (!popup) {
             return;
@@ -202,24 +231,19 @@ export default function CommitDetailPopup({
 
         const reposition = () => {
             const bounds = getViewportBounds(container);
-            popup.style.maxHeight = '';
+            const bodyMaxHeight = Math.max(160, bounds.height - POPUP_MARGIN * 2);
             popup.style.height = 'auto';
+            popup.style.maxHeight = `${bodyMaxHeight}px`;
 
             const naturalHeight = popup.getBoundingClientRect().height || 280;
-            const provisional = computeCommitDetailPopupPosition(
+            const finalLayout = computeCommitDetailPopupPosition(
                 anchor,
                 naturalHeight,
                 popupWidth,
                 bounds,
             );
-            const height = Math.min(naturalHeight, provisional.maxHeight);
-            const nextLayout = computeCommitDetailPopupPosition(
-                anchor,
-                height,
-                popupWidth,
-                bounds,
-            );
-            setLayout({ ...nextLayout, height });
+            applyPopupLayout(popup, finalLayout, popupWidth);
+            setLayout(finalLayout);
         };
 
         reposition();
@@ -305,8 +329,8 @@ export default function CommitDetailPopup({
                 left: layout.left,
                 top: layout.top,
                 width: popupWidth,
-                maxHeight: layout.maxHeight,
-                height: layout.height,
+                maxHeight: `${layout.maxHeight}px`,
+                height: `${layout.height}px`,
             }}
             onMouseDown={(e) => e.stopPropagation()}
         >

@@ -1,7 +1,7 @@
 import { Output } from "@/common/Output";
 import { Handler } from "@/common/handler";
 import { buildFileTree } from '@/service/compress/fileTree';
-import { planExtractTarget, revealExtractResult } from '@/service/compress/archiveUtils';
+import { planExtractTarget, resolveContainedPath, revealExtractResult } from '@/service/compress/archiveUtils';
 import prettyBytes from "@/service/zip/pretty-bytes";
 import { mkdirSync, writeFileSync } from "fs";
 import { createExtractorFromData, UnrarError } from "node-unrar-js";
@@ -57,7 +57,7 @@ export async function handleRar(uri: Uri, handler: Handler) {
             if (encrypted && !archivePassword) return;
 
             await commands.executeCommand('workbench.action.keepEditor');
-            const tempPath = `${decompressPath}/${entryName}`;
+            const tempPath = resolveContainedPath(decompressPath, entryName);
             const success = await extractFiles(extractor, decompressPath, [entryName], archivePassword);
             if (success) {
                 commands.executeCommand('vscode.open', Uri.file(tempPath));
@@ -95,7 +95,7 @@ async function extractFiles(
     try {
         const extracted = extractor.extract({ files, password });
         for (const file of extracted.files) {
-            const filePath = resolve(targetPath, file.fileHeader.name);
+            const filePath = resolveContainedPath(targetPath, file.fileHeader.name);
             mkdirSync(resolve(filePath, '..'), { recursive: true });
             writeFileSync(filePath, file.extraction!);
         }

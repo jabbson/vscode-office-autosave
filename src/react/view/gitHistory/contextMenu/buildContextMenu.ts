@@ -6,6 +6,17 @@ import type { GitPullDefaults } from '../util/gitHistoryState';
 const UNCOMMITTED = '*';
 const EMPTY_TREE_HASH = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 
+function abbrevHash(hash: string): string {
+    return hash === UNCOMMITTED ? UNCOMMITTED : hash.substring(0, 8);
+}
+
+function formatMergeMenuLabel(source: string): Pick<ContextMenuItem, 'label' | 'emphasis'> {
+    return {
+        label: $t('git.mergeIntoCurrentWithSource', { source }),
+        emphasis: source,
+    };
+}
+
 export interface GitActionEmitter {
     (action: Record<string, unknown> & { action: string }): void;
 }
@@ -39,16 +50,18 @@ export function buildCommitContextMenu(commit: GitCommit, ctx: MenuContext): Con
     const items: ContextMenuItem[] = [
         { id: 'copyHash', label: $t('git.copyCommitHash') },
         { id: 'copyMessage', label: $t('git.copyCommitMessage') },
-        { id: 'reset', label: $t('git.resetBranch') },
-        { id: 'createBranch', label: $t('git.createBranch') },
-        { id: 'addTag', label: $t('git.addTag') },
+        ...sep([
+            { id: 'reset', label: $t('git.resetBranch') },
+            { id: 'createBranch', label: $t('git.createBranch') },
+            { id: 'addTag', label: $t('git.addTag') },
+        ]),
         ...sep([
             { id: 'checkout', label: 'Checkout' },
             { id: 'cherryPick', label: 'Cherry Pick' },
             { id: 'revert', label: 'Revert' },
         ]),
         ...sep([
-            { id: 'merge', label: $t('git.mergeIntoCurrent') },
+            { id: 'merge', ...formatMergeMenuLabel(abbrevHash(hash)) },
         ]),
     ];
 
@@ -81,7 +94,7 @@ export function buildBranchContextMenu(
         { id: 'renameBranch', label: $t('git.renameBranch') },
         { id: 'deleteBranch', label: $t('git.deleteBranch'), disabled: isHead },
         ...sep([
-            { id: 'mergeBranch', label: $t('git.mergeIntoCurrent'), disabled: isHead },
+            { id: 'mergeBranch', ...formatMergeMenuLabel(branchName), disabled: isHead },
             { id: 'pushBranch', label: $t('git.pushBranchMenu'), disabled: ctx.remotes.length === 0 },
         ]),
         ...sep([
@@ -102,7 +115,7 @@ export function buildRemoteBranchContextMenu(
         { id: 'deleteRemoteBranch', label: $t('git.deleteRemoteBranch') },
         ...sep([
             { id: 'pullRemote', label: $t('git.pullIntoCurrent'), disabled: !localExists },
-            { id: 'mergeRemote', label: $t('git.mergeIntoCurrent') },
+            { id: 'mergeRemote', ...formatMergeMenuLabel(refName) },
         ]),
         ...sep([
             { id: 'copyRemote', label: $t('git.copyBranchName') },
@@ -357,9 +370,9 @@ export function prepareContextMenu(items: ExtendedContextMenuItem[]): {
     const metaById: Record<string, MenuPayloadMeta> = {};
     const stripped: ContextMenuItem[] = [];
     for (const item of items) {
-        const { id, label, disabled, separatorBefore, ...meta } = item;
+        const { id, label, disabled, separatorBefore, emphasis, ...meta } = item;
         metaById[id] = meta;
-        stripped.push({ id, label, disabled, separatorBefore });
+        stripped.push({ id, label, disabled, separatorBefore, emphasis });
     }
     return { items: stripped, metaById };
 }

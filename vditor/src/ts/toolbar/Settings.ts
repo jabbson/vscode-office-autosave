@@ -27,6 +27,7 @@ import {
     normalizeBoldColorValue,
     PAGE_WIDTH_KEY,
     PAGE_WIDTH_OPTIONS,
+    applyPageWidthSetting,
     IMAGE_MAX_WIDTH_KEY,
     IMAGE_MAX_HEIGHT_KEY,
     IMAGE_MAX_WIDTH_DEFAULT,
@@ -42,6 +43,8 @@ import {
     setGlobalLocalStorageSetting,
     resetGlobalSettings,
     applyEditorSettings,
+    applyTypewriterModeClass,
+    TYPEWRITER_MODE_KEY,
 } from "../util/globalLocalStorageSettings";
 import {getCodeFontFamilyOptions} from "../util/fontFamilyOptions";
 
@@ -172,8 +175,7 @@ export class Settings extends MenuItem {
                 applyBoldColorSetting(vditor.element, value);
             }
             else if (key === PAGE_WIDTH_KEY) {
-                if (value === "100%") vditor.element.style.removeProperty("--vditor-page-width");
-                else vditor.element.style.setProperty("--vditor-page-width", value);
+                applyPageWidthSetting(vditor.element, value);
             }
             else if (key === CODE_BLOCK_MAX_HEIGHT_KEY) {
                 if (value === CODE_BLOCK_MAX_HEIGHT_DEFAULT) vditor.element.style.removeProperty("--cm-block-max-height");
@@ -248,6 +250,9 @@ export class Settings extends MenuItem {
                 toggleTrigger.classList.toggle(`${SETTINGS_PANEL_CLASS}__toggle--on`, next);
                 toggleTrigger.setAttribute("aria-checked", String(next));
                 setGlobalLocalStorageSetting(key, next ? true : undefined);
+                if (key === TYPEWRITER_MODE_KEY) {
+                    applyTypewriterModeClass(vditor.element, next);
+                }
                 event.preventDefault();
                 event.stopPropagation();
                 return;

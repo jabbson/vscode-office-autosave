@@ -10,6 +10,16 @@
 				"classification": "SystemMetaData",
 				"purpose": "FeatureInsight",
 				"endPoint": "Azure"
+			},
+			"app_name": {
+				"classification": "SystemMetaData",
+				"purpose": "FeatureInsight",
+				"endPoint": "Azure"
+			},
+			"language": {
+				"classification": "SystemMetaData",
+				"purpose": "FeatureInsight",
+				"endPoint": "Azure"
 			}
 		}
 	}

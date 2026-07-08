@@ -62,7 +62,7 @@ export default class ContextMenu {
   setMode(mode) {
     const hideEl = this.menuItems[12];
     if (mode === 'row-col') {
-      hideEl.show();
+      hideEl.css('display', 'flex');
     } else {
       hideEl.hide();
     }

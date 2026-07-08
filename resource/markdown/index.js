@@ -41,7 +41,6 @@ handler.on("open", async (md) => {
         return;
       }
       let uri = payload.href;
-      console.log('uri',uri,event.target)
       if (payload.type === "wikilink" || payload.type === "wikilink-embed") {
         const hashIndex = uri.indexOf("#");
         const page = hashIndex < 0 ? uri : uri.slice(0, hashIndex);
@@ -55,6 +54,7 @@ handler.on("open", async (md) => {
       handler.emit("openLink", uri);
     },
     debugger: isDev,
+    wysiwygInputPerf: isDev && false,
     changeEditorTheme(theme) {
       handler.emit('editorTheme', theme)
     },

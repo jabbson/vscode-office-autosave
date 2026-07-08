@@ -14,7 +14,7 @@ import { mkdirSync, writeFileSync } from 'fs';
 import { basename, resolve } from 'path';
 import prettyBytes from './pretty-bytes';
 import { detectZipFilenameEncoding } from './zipEncoding';
-import { unwrapCrx } from '@/service/compress/archiveUtils';
+import { resolveContainedPath, unwrapCrx } from '@/service/compress/archiveUtils';
 
 export interface ZipDisplayEntry {
     name?: string;
@@ -238,7 +238,7 @@ export class ZipArchive {
         const entries = fileMap ? Object.entries(fileMap) : [];
         for (const [entryName, entry] of entries) {
             const content = await this.readEntry(entry, password);
-            const filePath = resolve(targetPath, entryName);
+            const filePath = resolveContainedPath(targetPath, entryName);
             mkdirSync(resolve(filePath, '..'), { recursive: true });
             writeFileSync(filePath, content);
         }

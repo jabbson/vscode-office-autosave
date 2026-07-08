@@ -17,6 +17,7 @@ export class Options {
             type: "markdown",
         },
         debugger: false,
+        wysiwygInputPerf: false,
         height: "auto",
         hint: {
             delay: 200,

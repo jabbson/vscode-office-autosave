@@ -16,6 +16,7 @@ import {
     setFileHistorySplitLayout,
     type FileHistorySplitLayout,
 } from '../util/gitHistoryPreferences';
+import { Global } from '@/common/global';
 
 const DEFAULT_MAX_COMMITS = 300;
 
@@ -97,6 +98,8 @@ export class MessageRouter {
                 this.onGitAction(content as GitActionPayload)))
             .on('saveFileHistorySplitLayout', this.wrapHandler((content) =>
                 this.onSaveFileHistorySplitLayout(content as { layout: FileHistorySplitLayout })))
+            .on('updateConfig', this.wrapHandler((content) =>
+                this.onUpdateConfig(content as { key: string; value: unknown })))
             .on('openSponsor', this.wrapHandler(() => {
                 void vscode.commands.executeCommand(
                     'workbench.extensions.action.showExtensionsWithIds',
@@ -251,6 +254,14 @@ export class MessageRouter {
     private async onSaveFileHistorySplitLayout(payload: { layout: FileHistorySplitLayout }): Promise<void> {
         const layout = payload.layout === 'horizontal' ? 'horizontal' : 'vertical';
         await setFileHistorySplitLayout(this.extensionContext, layout);
+    }
+
+    private async onUpdateConfig(payload: { key: string; value: unknown }): Promise<void> {
+        const key = payload.key?.trim();
+        if (!key) {
+            return;
+        }
+        await Global.updateConfig(key, payload.value);
     }
 
     private async onLoadRepoInfo(payload: LoadRepoInfoPayload): Promise<void> {

@@ -3,7 +3,7 @@ import { saveCacheFocus } from "../util/cacheFocus";
 import { fireContentInput } from "../util/saveToolbarState";
 import { accessLocalStorage } from "../util/compatibility";
 import { clearHistoryInputBuffer } from "../util/historyInputBufferState";
-import { getHistoryRecordWait } from "../util/historySchedule";
+import { getHistoryMaxWaitFactor, getHistoryRecordWait } from "../util/historySchedule";
 import { matchHotkeyNew } from "../util/hotKey";
 import { formatMs, logPerf } from "../util/log";
 
@@ -27,7 +27,11 @@ export const afterRenderEvent = (vditor: IVditor, options = {
         vditor.hint.render(vditor);
     }
     clearTimeout(vditor.wysiwyg.afterRenderTimeoutId);
-    const wait = getHistoryRecordWait(vditor.wysiwyg.afterRenderLastAt, vditor.options.undoDelay);
+    const wait = getHistoryRecordWait(
+        vditor.wysiwyg.afterRenderLastAt,
+        vditor.options.undoDelay,
+        getHistoryMaxWaitFactor(vditor),
+    );
     vditor.wysiwyg.afterRenderTimeoutId = window.setTimeout(() => {
         recordHistory(vditor, options);
     }, wait);

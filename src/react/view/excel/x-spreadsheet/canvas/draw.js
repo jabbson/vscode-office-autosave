@@ -1,5 +1,9 @@
 /* global window */
 
+// Small inset for top/bottom vertical alignment; the cell padding is meant for
+// horizontal spacing and is too large to reuse vertically.
+const VERTICAL_TEXT_PADDING = 2;
+
 function dpr() {
   return window.devicePixelRatio || 1;
 }
@@ -62,15 +66,22 @@ class DrawBox {
     return x;
   }
 
-  texty(align, h) {
-    const { height, padding } = this;
+  texty(align, h, blockHeight = h) {
+    const { height } = this;
+    // Horizontal padding (cell padding) is too large for vertical spacing; use a small inset.
+    const vpad = VERTICAL_TEXT_PADDING;
     let { y } = this;
     if (align === 'top') {
-      y += padding;
+      y += vpad;
     } else if (align === 'middle') {
-      y += height / 2 - h / 2;
+      // Center using full cell height; only top-align when the text block exceeds it.
+      if (blockHeight > height) {
+        y += vpad;
+      } else {
+        y += height / 2 - h / 2;
+      }
     } else if (align === 'bottom') {
-      y += height - padding - h;
+      y += height - vpad - h;
     }
     return y;
   }
@@ -272,8 +283,10 @@ class Draw {
         }
       }
     });
-    const txtHeight = (ntxts.length - 1) * (font.size + 2);
-    let ty = box.texty(valign, txtHeight);
+    const lineHeight = font.size + 2;
+    const txtHeight = (ntxts.length - 1) * lineHeight;
+    const blockHeight = ntxts.length > 0 ? txtHeight + font.size : 0;
+    let ty = box.texty(valign, txtHeight, blockHeight);
     ntxts.forEach((txt) => {
       const txtWidth = ctx.measureText(txt).width;
       this.fillText(txt, tx, ty);
@@ -285,7 +298,7 @@ class Draw {
       if (underline) {
         drawFontLine.call(this, 'underline', tx, ty, align, valign, font.size, txtWidthCSS);
       }
-      ty += font.size + 2;
+      ty += lineHeight;
     });
     ctx.restore();
     return this;

@@ -16,9 +16,14 @@
 - Markdown: `.md`、`.markdown`
 - HTML: `.html`、`.htm`
 - HTTP 请求: `.http`、`.rest`
-- Windows 注册表: `.reg`
 - Java: `.class`（反编译）
 - 压缩文件: `.zip`、`.jar`、`.vsix`、`.rar`、`.7z`、`.tar`、`.tar.gz`、`.tgz`、`.apk`
+
+## Git 历史
+
+Office Viewer 内置完整的 Git 历史工作区，让你无需离开 VS Code 即可浏览仓库。可从源代码管理视图、编辑器标题栏、编辑器右键菜单或文件资源管理器右键菜单打开。
+
+![1783342874748](image/README/1783342874748.png)
 
 ## Markdown
 
@@ -41,14 +46,15 @@
 
 快捷键：基于 [shortcut.md](shortcut.md)，以及：
 
-- 将列表上移一行: `Ctrl Alt I` / `⌘ ^ I`
-- 将列表下移一行: `Ctrl Alt J` / `⌘ ^ J`
+- 新行: `Ctrl+Enter` / `⌘ Enter`
+- 编辑超链接: `Alt+Enter` / `^ Enter`
+- 设置 CodeMirror 语言: `Alt+Enter` / `^ Enter`
 - 在 VS Code 中编辑: `Ctrl Alt E` / `⌘ ^ E`
+- 粘贴为纯文本: `Ctrl+Shift+V` / `⌘ ⇧ V`
 
 ## 其他功能
 
 - HTML: 编辑时按下 `Ctrl+Shift+V` 可实时预览
-- Git 历史: 在源代码管理视图或文件右键菜单中浏览提交图、查看文件历史、对比修订并执行常用 Git 操作
 - YAML: 支持文档大纲与锚点导航（别名引用可跳转到定义）
 - 图标主题: 内置 [Material Icon Theme](https://github.com/PKief/vscode-material-icon-theme) 部分图标，并提供 **Office Material Icon Theme** 与 **One Dark Modern** 配色主题
 - Excel: 支持预览和保存 `.xlsx`、`.xls`、`.xlsm`、`.csv`、`.ods` 等文件（注意保存 `.xlsx` 可能丢失格式；`.csv` 不支持 GBK 编码的中文）
@@ -57,7 +63,7 @@
 
 ## Sponsor
 
-[![Database Client](https://database-client.com/text_logo.png)](https://marketplace.visualstudio.com/items?itemName=cweijan.vscode-database-client2)
+[![Database Client](https://doc.database-client.com/public/logo.png)](https://marketplace.visualstudio.com/items?itemName=cweijan.vscode-database-client2)
 
 适用于 Visual Studio Code 的数据库客户端，支持 **MySQL/MariaDB、PostgreSQL、SQLite、Redis** 以及 **ElasticSearch** 等数据库的管理，且可作为一个 SSH 客户端，极大地提升您的生产力！[立刻安装](https://marketplace.visualstudio.com/items?itemName=cweijan.vscode-database-client2)。
 

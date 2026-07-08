@@ -14,6 +14,7 @@ import {
     resolvePreferredRepo,
 } from '../util/resolveGitHistoryCommandContext';
 import { i18n } from '@/common/global';
+import { TelemetryService } from '@/service/telemetryService';
 
 let commitService: CommitService | undefined;
 let repoDiscovery: RepoDiscovery | undefined;
@@ -69,6 +70,67 @@ async function openGitHistory(
         gitActionHandler,
         panelContext,
     );
+    TelemetryService.get()?.trackViewOpen('gitHistory');
+}
+
+async function runQuickSyncCommand(): Promise<void> {
+    if (!repoDiscovery || !gitActions) {
+        return;
+    }
+    await repoDiscovery.discover();
+    const repos = repoDiscovery.getRepos();
+    if (repos.length === 0) {
+        vscode.window.showWarningMessage('未发现 Git 仓库。');
+        return;
+    }
+
+    const repo = repos.length === 1
+        ? repos[0]
+        : await vscode.window.showQuickPick(
+            [...repos],
+            { title: 'Quick Sync', placeHolder: '选择仓库' },
+        );
+    if (!repo) return;
+
+    const branch = await gitActions.getCurrentBranch(repo);
+    if (!branch) {
+        vscode.window.showErrorMessage('无法获取当前分支。');
+        return;
+    }
+    if (branch === 'HEAD') {
+        vscode.window.showWarningMessage('当前处于 detached HEAD，无法 Quick Sync。');
+        return;
+    }
+
+    const remotes = await gitActions.listRemotes(repo);
+    const remote = remotes.length === 0
+        ? ''
+        : remotes.length === 1
+            ? remotes[0]
+            : await vscode.window.showQuickPick(
+                remotes,
+                { title: 'Quick Sync', placeHolder: '选择远程(remote)' },
+            );
+    if (remote === undefined) return;
+
+    const commitMessage = await vscode.window.showInputBox({
+        title: 'Quick Sync',
+        prompt: '提交信息（可选，仅在存在未提交改动时会用到）',
+        value: 'Quick Sync',
+    });
+    if (commitMessage === undefined) return;
+
+    await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: 'Git: Quick Sync', cancellable: false },
+        async () => {
+            const error = await gitActions.quickSync(repo, branch, remote, commitMessage);
+            if (error) {
+                vscode.window.showErrorMessage(error);
+            } else {
+                vscode.window.showInformationMessage('Quick Sync 完成。');
+            }
+        },
+    );
 }
 
 export async function activateGitHistory(context: vscode.ExtensionContext): Promise<void> {
@@ -114,6 +176,9 @@ export async function activateGitHistory(context: vscode.ExtensionContext): Prom
                 return;
             }
             await openGitHistory(context, mergePanelContext({ fileUri }, fromArg));
+        }),
+        vscode.commands.registerCommand('office.gitHistory.quickSync', async () => {
+            await runQuickSyncCommand();
         }),
         vscode.window.registerWebviewPanelSerializer(
             GIT_HISTORY_VIEW_TYPE,

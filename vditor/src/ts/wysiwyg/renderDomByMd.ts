@@ -1,7 +1,7 @@
 import {isSpecialBlock, renderCodeBlocks, setupLazyCodeMirrorObserver, syncMathBlocksDisplayMode} from "../codeBlock/codeMirrorManager";
 import {log} from "../util/log";
 import {processCodeRender} from "../util/processCode";
-import {renderToc} from "../util/toc";
+import {renderTocNow} from "../util/toc";
 import {afterRenderEvent} from "./afterRenderEvent";
 
 export const BOUNDARY_SENTINEL_CLASS = "vditor-editor-boundary";
@@ -56,6 +56,6 @@ export const renderDomByMd = (vditor: IVditor, md: string, options = {
     setupLazyCodeMirrorObserver(vditor);
     ensureEditorBoundaryParagraphs(editorElement);
 
-    renderToc(vditor);
+    renderTocNow(vditor);
     afterRenderEvent(vditor, options);
 };

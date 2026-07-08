@@ -35,6 +35,9 @@ export default {
         emptyFolder: 'このフォルダーは空です',
         add: '追加',
         extract: '展開',
+        jarInfo: 'JAR 情報',
+        targetJavaVersion: 'Target Java Version',
+        mainClass: 'Main-Class',
     },
     svg: {
         loading: 'SVG を読み込み中...',
@@ -115,6 +118,7 @@ export default {
         renameBranch: 'ブランチの名前を変更',
         merge: 'マージ',
         mergeIntoCurrent: '現在のブランチにマージ',
+        mergeIntoCurrentWithSource: '{source} を現在のブランチにマージ',
         copyCommitHash: 'コミットハッシュをコピー',
         copyCommitMessage: 'コミットメッセージをコピー',
         resetBranch: 'ブランチをリセット',

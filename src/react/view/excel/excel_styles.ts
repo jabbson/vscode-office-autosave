@@ -42,6 +42,7 @@ const FORMAT_TO_NUMFMT: Record<string, string> = {
     normal: 'General',
     text: '@',
     number: '#,##0.00',
+    number_plain: '0.00',
     percent: '0.00%',
     rmb: '¥#,##0.00',
     usd: '$#,##0.00',
@@ -63,7 +64,8 @@ const NUMFMT_PATTERNS: { pattern: RegExp; format: string }[] = [
     { pattern: /yyyy.*h:mm|m\/d.*h:mm/i, format: 'datetime' },
     { pattern: /h:mm|hh:mm/i, format: 'time' },
     { pattern: /yyyy|m\/d|d\/m|dd\/mm/i, format: 'date' },
-    { pattern: /#|0\.0|0,/, format: 'number' },
+    { pattern: /,/, format: 'number' },
+    { pattern: /#|0\.0/, format: 'number_plain' },
 ];
 
 function numFmtToSpreadsheetFormat(numFmt?: string): string | undefined {

@@ -32,7 +32,6 @@ import {
 } from "../util/selection";
 import {afterRenderEvent} from "./afterRenderEvent";
 import {removeBlockElement} from "./processKeydown";
-import {renderToc} from "../util/toc";
 import {updateActiveHeadingMarker} from "../util/updateActiveHeadingMarker";
 import {showToast} from "../ui/toast";
 import {codicon} from "../util/codicon";

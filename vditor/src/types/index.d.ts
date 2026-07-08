@@ -6,6 +6,20 @@ interface Window {
     VditorI18n: ITips;
 }
 
+/** CSS Custom Highlight API */
+declare class Highlight {
+    constructor(...ranges: Range[]);
+}
+
+interface CSSHighlights {
+    set(name: string, highlight: Highlight): void;
+    delete(name: string): void;
+}
+
+interface CSS {
+    readonly highlights: CSSHighlights;
+}
+
 interface IObject {
     [key: string]: string;
 }
@@ -485,6 +499,8 @@ interface IOptions {
     value?: string;
     /** 是否显示日志。默认值: false */
     debugger?: boolean;
+    /** 是否打印 WYSIWYG input SpinVditorDOM 前后的 HTML。默认值: false */
+    wysiwygInputPerf?: boolean;
     /** 编辑器总高度。默认值: 'auto' */
     height?: number | string;
     /** 编辑器最小高度 */
@@ -637,6 +653,10 @@ interface IVditor {
     originalInnerHTML: string;
     lute: Lute | undefined;
     currentMode: IEditMode;
+    /** 首次加载时的 Markdown 字符数，用于计算 history debounce 放行倍数 */
+    documentInitialLength?: number;
+    /** recordHistory 相对 undoDelay 的放行倍数；-1 表示超大文档，仅 debounce 不强制 flush */
+    historyMaxWaitFactor?: number;
     outline: {
         element: HTMLElement,
         init(vditor: IVditor): void,

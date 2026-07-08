@@ -108,7 +108,7 @@ export default class SortFilter {
       sortAscEl.checked(sort.asc());
       sortDescEl.checked(sort.desc());
     } else {
-      this.sortDesc = null;
+      this.sort = null;
       sortAscEl.checked(false);
       sortDescEl.checked(false);
     }

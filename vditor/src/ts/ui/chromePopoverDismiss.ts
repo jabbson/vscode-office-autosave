@@ -20,6 +20,9 @@ let documentDismissBound = false;
 
 const handleDocumentPointerDown = (event: Event) => {
     const target = eventTargetElement(event);
+    if (target?.closest(".vditor-confirm-overlay")) {
+        return;
+    }
     for (const rule of rules) {
         if (!rule.isActive()) {
             continue;

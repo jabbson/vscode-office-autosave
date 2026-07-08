@@ -4,13 +4,17 @@ const DATE_LOCALE = 'en-US';
 
 const relativeTimeFormatter = new Intl.RelativeTimeFormat(DATE_LOCALE, { numeric: 'auto' });
 
-const absoluteDateFormatter = new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric',
-});
+const pad2 = (value: number) => value.toString().padStart(2, '0');
+
+function formatAbsoluteDate(thenMs: number): string {
+    const date = new Date(thenMs);
+    const y = date.getFullYear();
+    const m = pad2(date.getMonth() + 1);
+    const d = pad2(date.getDate());
+    const hh = pad2(date.getHours());
+    const mm = pad2(date.getMinutes());
+    return `${y}-${m}-${d} ${hh}:${mm}`;
+}
 
 const absoluteDateCache = new Map<number, string>();
 
@@ -45,7 +49,7 @@ export function formatCommitDate(timestampSec: number, nowMs: number = Date.now(
         return cached;
     }
 
-    const formatted = absoluteDateFormatter.format(thenMs);
+    const formatted = formatAbsoluteDate(thenMs);
     absoluteDateCache.set(timestampSec, formatted);
     return formatted;
 }

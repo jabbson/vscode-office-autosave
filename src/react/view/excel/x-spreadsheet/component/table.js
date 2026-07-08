@@ -12,68 +12,6 @@ import { getExcelThemeColor, resolveExcelCellBg, resolveExcelCellColor } from '.
 // gobal var
 const cellPaddingWidth = 10;
 
-function computeAutoRowHeights(data, ctx) {
-  const { rows, cols, styles } = data;
-  const defaultStyle = data.defaultStyle();
-  const defaultFontName = (defaultStyle.font && defaultStyle.font.name) || 'sans-serif';
-  const defaultFontSizePt = (defaultStyle.font && defaultStyle.font.size) || 11;
-
-  rows.each((ri, row) => {
-    if (!row || !row.cells) return;
-    let maxNeededHeight = 0;
-
-    Object.keys(row.cells).forEach((ci) => {
-      const cell = row.cells[ci];
-      if (!cell || !cell.text) return;
-
-      const style = cell.style != null ? styles[cell.style] : null;
-      const hasNewline = `${cell.text}`.includes('\n');
-      const needsWrap = (style && style.textwrap) || hasNewline;
-      if (!needsWrap) return;
-
-      const rindex = parseInt(ri, 10);
-      const cindex = parseInt(ci, 10);
-
-      // skip non-origin merge cells
-      const merge = data.merges && data.merges.getFirstIncludes(rindex, cindex);
-      if (merge && (merge.sri !== rindex || merge.sci !== cindex)) return;
-
-      const colWidth = cols.getWidth(cindex);
-      const innerWidth = colWidth - cellPaddingWidth * 2 - 2;
-
-      const fontName = (style && style.font && style.font.name) || defaultFontName;
-      const fontSizePt = (style && style.font && style.font.size) || defaultFontSizePt;
-      const fontSizePx = getFontSizePxByPt(fontSizePt);
-      const bold = (style && style.font && style.font.bold) ? 'bold' : '';
-      const italic = (style && style.font && style.font.italic) ? 'italic' : '';
-      ctx.font = `${italic} ${bold} ${npx(fontSizePx)}px '${fontName}'`.trim();
-
-      const lines = `${cell.text}`.split('\n');
-      let lineCount = 0;
-      lines.forEach((line) => {
-        const lineWidth = ctx.measureText(line).width;
-        const innerWidthPx = npx(innerWidth);
-        if (innerWidthPx > 0 && lineWidth > innerWidthPx) {
-          lineCount += Math.ceil(lineWidth / innerWidthPx);
-        } else {
-          lineCount += 1;
-        }
-      });
-
-      const neededHeight = lineCount * (fontSizePx + 2) + cellPaddingWidth * 2 + 2;
-      if (neededHeight > maxNeededHeight) maxNeededHeight = neededHeight;
-    });
-
-    if (maxNeededHeight > 0) {
-      const rindex = parseInt(ri, 10);
-      const currentHeight = rows.getHeight(rindex);
-      if (maxNeededHeight > currentHeight) {
-        rows.setHeight(rindex, Math.ceil(maxNeededHeight));
-      }
-    }
-  });
-}
-
 function tableFixedHeaderCleanStyle() {
   return { fillStyle: getExcelThemeColor('--excel-header-bg', '#f4f5f8') };
 }
@@ -87,10 +25,11 @@ function tableGridStyle() {
 }
 
 function tableFixedHeaderStyle() {
+  const scale = this && this.data ? this.data.getZoomScale() : 1;
   return {
     textAlign: 'center',
     textBaseline: 'middle',
-    font: `500 ${npx(12)}px Source Sans Pro`,
+    font: `500 ${npx(12 * scale)}px Source Sans Pro`,
     fillStyle: getExcelThemeColor('--excel-header-fg', '#585757'),
     lineWidth: thinLineWidth(),
     strokeStyle: getExcelThemeColor('--excel-grid-line', '#e6e6e6'),
@@ -121,20 +60,16 @@ function renderCellBorders(bboxes, translateFunc) {
 */
 
 export function renderCell(draw, data, rindex, cindex, yoffset = 0) {
-  const { sortedRowMap, rows, cols } = data;
+  const { rows, cols } = data;
   if (rows.isHide(rindex) || cols.isHide(cindex)) return;
-  let nrindex = rindex;
-  if (sortedRowMap.has(rindex)) {
-    nrindex = sortedRowMap.get(rindex);
-  }
 
-  const cell = data.getCell(nrindex, cindex);
-  const isLocked = !data.canEditCell(nrindex, cindex);
+  const cell = data.getCell(rindex, cindex);
+  const isLocked = !data.canEditCell(rindex, cindex);
   const lockedColor = getExcelThemeColor('--excel-locked-indicator', 'rgba(61, 153, 112, 0.42)');
 
   if (cell === null) {
     if (!isLocked) return;
-    const style = data.getCellStyleOrDefault(nrindex, cindex);
+    const style = data.getCellStyleOrDefault(rindex, cindex);
     const dbox = getDrawBox(data, rindex, cindex, yoffset);
     dbox.bgcolor = resolveExcelCellBg(style.bgcolor);
     draw.rect(dbox, () => {});
@@ -142,14 +77,15 @@ export function renderCell(draw, data, rindex, cindex, yoffset = 0) {
     return;
   }
 
-  const style = data.getCellStyleOrDefault(nrindex, cindex);
+  const style = data.getCellStyleOrDefault(rindex, cindex);
   const defaultStyle = data.defaultStyle();
 
   const dbox = getDrawBox(data, rindex, cindex, yoffset);
   dbox.bgcolor = resolveExcelCellBg(style.bgcolor);
   if (style.border !== undefined) {
-    const mergeRange = data.merges && data.merges.getFirstIncludes(nrindex, cindex);
-    const isMergeSubcell = mergeRange && (mergeRange.sri !== nrindex || mergeRange.sci !== cindex);
+    const dataRow = data.sortedRowMap.has(rindex) ? data.sortedRowMap.get(rindex) : rindex;
+    const mergeRange = data.merges && data.merges.getFirstIncludes(dataRow, cindex);
+    const isMergeSubcell = mergeRange && (mergeRange.sri !== dataRow || mergeRange.sci !== cindex);
     if (!isMergeSubcell) {
       dbox.setBorders(style.border);
       draw.strokeBorders(dbox);
@@ -159,7 +95,10 @@ export function renderCell(draw, data, rindex, cindex, yoffset = 0) {
     // render text
     let cellText = '';
     if (!data.settings.evalPaused) {
-      cellText = _cell.render(cell.text || '', formulam, (y, x) => (data.getCellTextOrDefault(x, y)));
+      cellText = _cell.render(cell.text || '', formulam, (y, x) => {
+        const refCell = data.rows.getCell(x, y);
+        return (refCell && refCell.text) ? refCell.text : '';
+      });
     } else {
       cellText = cell.text || '';
     }
@@ -171,7 +110,7 @@ export function renderCell(draw, data, rindex, cindex, yoffset = 0) {
     if (!font.name) {
       font.name = (defaultStyle.font && defaultStyle.font.name) || 'Arial';
     }
-    font.size = getFontSizePxByPt(font.size || (defaultStyle.font && defaultStyle.font.size) || 11);
+    font.size = getFontSizePxByPt(font.size || (defaultStyle.font && defaultStyle.font.size) || 11) * data.getZoomScale();
     const hyperlink = data.getHyperlink(rindex, cindex);
     const drawStyle = {
       align: style.align,
@@ -183,7 +122,7 @@ export function renderCell(draw, data, rindex, cindex, yoffset = 0) {
     };
     draw.text(cellText, dbox, drawStyle, style.textwrap);
     // error
-    const error = data.validations.getError(nrindex, cindex);
+    const error = data.getValidationError(rindex, cindex);
     if (error) {
       // console.log('error:', rindex, cindex, error);
       draw.error(dbox);
@@ -279,7 +218,7 @@ function renderFixedHeaders(type, viewRange, w, h, tx, ty) {
   // console.log(data.selectIndexes);
   // draw text
   // text font, align...
-  draw.attr(tableFixedHeaderStyle());
+  draw.attr(tableFixedHeaderStyle.call(this));
   // y-header-text
   if (type === 'all' || type === 'left') {
     data.rowEach(viewRange.sri, viewRange.eri, (i, y1, rowHeight) => {
@@ -384,17 +323,12 @@ class Table {
 
   resetData(data) {
     this.data = data;
-    this.autoHeightsComputed = false;
     this.render();
   }
 
   render() {
     // resize canvas
     const { data } = this;
-    if (!this.autoHeightsComputed) {
-      computeAutoRowHeights(data, this.draw.ctx);
-      this.autoHeightsComputed = true;
-    }
     const { rows, cols } = data;
     // fixed width of header
     const fw = cols.indexWidth;

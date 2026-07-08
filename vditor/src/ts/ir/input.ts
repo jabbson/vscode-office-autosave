@@ -18,7 +18,7 @@ import {
 } from "../codeBlock/codeMirrorManager";
 import {getEditorRange, getSelectPosition, preserveEditorScroll, setRangeByWbr} from "../util/selection";
 import {expandMarker} from "./expandMarker";
-import {renderToc} from "../util/toc";
+import {scheduleRenderToc} from "../util/toc";
 import {processAfterRender} from "./process";
 import {getMarkdown} from "../markdown/getMarkdown";
 import {fireContentInput} from "../util/saveToolbarState";
@@ -264,7 +264,7 @@ export const input = (vditor: IVditor, range: Range, ignoreSpace = false, event?
         processCodeRender(item, vditor);
     });
 
-    renderToc(vditor);
+    scheduleRenderToc(vditor);
 
     processAfterRender(vditor, {
         enableAddUndoStack: true,

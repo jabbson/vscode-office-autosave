@@ -41,6 +41,37 @@ const finishTableCellNavigation = (vditor: IVditor, range: Range, cell: HTMLTabl
     expandMarkerWithMathSync(range, vditor);
 };
 
+const removePreviousTab = (range: Range, tab: string) => {
+    const removeFromTextNode = (textNode: Text, endOffset: number) => {
+        const text = textNode.textContent || "";
+        if (endOffset < tab.length || text.slice(endOffset - tab.length, endOffset) !== tab) {
+            return false;
+        }
+        textNode.deleteData(endOffset - tab.length, tab.length);
+        range.setStart(textNode, endOffset - tab.length);
+        range.collapse(true);
+        return true;
+    };
+
+    const { startContainer, startOffset } = range;
+    if (startContainer.nodeType === Node.TEXT_NODE) {
+        if (removeFromTextNode(startContainer as Text, startOffset)) {
+            return true;
+        }
+        if (startOffset === 0 && startContainer.previousSibling?.nodeType === Node.TEXT_NODE) {
+            const previousSibling = startContainer.previousSibling as Text;
+            return removeFromTextNode(previousSibling, previousSibling.textContent.length);
+        }
+        return false;
+    }
+
+    const previousNode = startOffset > 0 ? startContainer.childNodes[startOffset - 1] : startContainer.previousSibling;
+    if (previousNode?.nodeType === Node.TEXT_NODE) {
+        return removeFromTextNode(previousNode as Text, previousNode.textContent.length);
+    }
+    return false;
+};
+
 // https://github.com/Vanessa219/vditor/issues/508 软键盘无法删除空块
 export const fixGSKeyBackspace = (event: KeyboardEvent, vditor: IVditor, startContainer: Node) => {
     if (event.keyCode === 229 && event.code === "" && event.key === "Unidentified") {
@@ -98,6 +129,32 @@ const buildEmptyListItemHTML = (liElement: HTMLElement) => {
     return `<li${markerAttr}>${Constants.ZWSP}<wbr></li>`;
 };
 
+const isEmptyParagraphBlock = (element: Element | null) => {
+    return !!element
+        && element.tagName === "P"
+        && (element as HTMLElement).getAttribute("data-block") === "0"
+        && (element as HTMLElement).textContent.trim().replace(Constants.ZWSP, "") === "";
+};
+
+const dedupeAdjacentEmptyParagraphs = (element: HTMLElement) => {
+    const previousElement = element.previousElementSibling;
+    const nextElement = element.nextElementSibling;
+
+    if (isEmptyParagraphBlock(previousElement)) {
+        previousElement.remove();
+    }
+    if (isEmptyParagraphBlock(nextElement)) {
+        nextElement.remove();
+    }
+};
+
+const createParagraphFromListItem = (liElement: HTMLElement) => {
+    const paragraphElement = document.createElement("p");
+    paragraphElement.setAttribute("data-block", "0");
+    paragraphElement.innerHTML = `<wbr>${liElement.innerHTML}`;
+    return paragraphElement;
+};
+
 const replaceListItemWithEmptyBlock = (liElement: HTMLElement) => {
     const listElement = liElement.parentElement;
     const beforeListElement = listElement.cloneNode(false) as HTMLElement;
@@ -132,6 +189,7 @@ const replaceListItemWithEmptyBlock = (liElement: HTMLElement) => {
         fragment.appendChild(afterListElement);
     }
     listElement.replaceWith(fragment);
+    dedupeAdjacentEmptyParagraphs(emptyBlockElement);
 };
 
 export const insertEmptyBlock = (vditor: IVditor, position: InsertPosition) => {
@@ -614,13 +672,14 @@ export const fixList = (range: Range, vditor: IVditor, pElement: HTMLElement | f
             !liElement.previousElementSibling && range.toString() === "" &&
             getSelectPosition(liElement, vditor[vditor.currentMode].element, range).start === 0) {
             // 光标位于点和第一个字符中间时，无法删除 li 元素
+            const paragraphElement = createParagraphFromListItem(liElement);
             if (liElement.nextElementSibling) {
-                liElement.parentElement.insertAdjacentHTML("beforebegin",
-                    `<p data-block="0"><wbr>${liElement.innerHTML}</p>`);
+                liElement.parentElement.insertAdjacentElement("beforebegin", paragraphElement);
                 liElement.remove();
             } else {
-                liElement.parentElement.outerHTML = `<p data-block="0"><wbr>${liElement.innerHTML}</p>`;
+                liElement.parentElement.replaceWith(paragraphElement);
             }
+            dedupeAdjacentEmptyParagraphs(paragraphElement);
             setRangeByWbr(vditor[vditor.currentMode].element, range);
             recordHistoryChange(vditor);
             event.preventDefault();
@@ -673,7 +732,7 @@ export const fixList = (range: Range, vditor: IVditor, pElement: HTMLElement | f
 export const fixTab = (vditor: IVditor, range: Range, event: KeyboardEvent) => {
     if (vditor.options.tab && event.key === "Tab") {
         if (event.shiftKey) {
-            // TODO shift+tab
+            removePreviousTab(range, vditor.options.tab);
         } else {
             if (range.toString() === "") {
                 range.insertNode(document.createTextNode(vditor.options.tab));
@@ -1151,10 +1210,14 @@ export const fixCodeBlock = (vditor: IVditor, event: KeyboardEvent, codeRenderEl
     }
 
     // tab
-    // TODO shift + tab, shift and 选中文字
-    if (vditor.options.tab && event.key === "Tab" && !event.shiftKey && range.toString() === "") {
-        range.insertNode(document.createTextNode(vditor.options.tab));
-        range.collapse(false);
+    // TODO shift and 选中文字
+    if (vditor.options.tab && event.key === "Tab" && range.toString() === "") {
+        if (event.shiftKey) {
+            removePreviousTab(range, vditor.options.tab);
+        } else {
+            range.insertNode(document.createTextNode(vditor.options.tab));
+            range.collapse(false);
+        }
         execAfterRender(vditor);
         event.preventDefault();
         return true;

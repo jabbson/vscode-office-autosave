@@ -1,7 +1,13 @@
+export interface JarInfo {
+    mainClass?: string;
+    javaMinVersion?: string;
+}
+
 export interface CompressInfo {
     fileName: string;
     files: FileInfo[];
     folderMap: { [key: string]: FileInfo };
+    jarInfo?: JarInfo;
 }
 
 export class FileInfo {

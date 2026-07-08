@@ -2,12 +2,13 @@ import { tf } from '../locale/locale';
 
 const formatStringRender = v => v;
 
-const formatNumberRender = (v) => {
+const formatNumberRender = (v, useGrouping = true) => {
   // match "-12.1" or "12" or "12.1"
   if (/^(-?\d*.?\d*)$/.test(v)) {
     const v1 = Number(v).toFixed(2).toString();
     const [first, ...parts] = v1.split('\\.');
-    return [first.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,'), ...parts];
+    const integer = useGrouping ? first.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1,') : first;
+    return [integer, ...parts].join('.');
   }
   return v;
 };
@@ -31,6 +32,13 @@ const baseFormats = [
     type: 'number',
     label: '1,000.12',
     render: formatNumberRender,
+  },
+  {
+    key: 'number_plain',
+    title: tf('format.numberPlain'),
+    type: 'number',
+    label: '1000.12',
+    render: v => formatNumberRender(v, false),
   },
   {
     key: 'percent',

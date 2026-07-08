@@ -1,6 +1,6 @@
 import { Output } from '@/common/Output';
 import { Handler } from '@/common/handler';
-import { planExtractTarget, revealExtractResult } from '@/service/compress/archiveUtils';
+import { planExtractTarget, resolveContainedPath, revealExtractResult } from '@/service/compress/archiveUtils';
 import { buildFileTree } from '@/service/compress/fileTree';
 import { extractTarEntries, formatTarModifyTime, listTarEntries } from '@/service/compress/tarUtils';
 import prettyBytes from '@/service/zip/pretty-bytes';
@@ -42,7 +42,7 @@ export async function handleTarGz(uri: Uri, handler: Handler, gzip = true) {
             }
 
             await commands.executeCommand('workbench.action.keepEditor');
-            const tempPath = `${decompressPath}/${entryName}`;
+            const tempPath = resolveContainedPath(decompressPath, entryName);
             try {
                 await extractTarEntries(data, decompressPath, gzip, [entryName]);
                 commands.executeCommand('vscode.open', Uri.file(tempPath));

@@ -35,6 +35,9 @@ export default {
         emptyFolder: '此資料夾為空',
         add: '新增',
         extract: '解壓縮',
+        jarInfo: 'JAR 資訊',
+        targetJavaVersion: 'Target Java Version',
+        mainClass: 'Main-Class',
     },
     svg: {
         loading: '正在載入 SVG...',
@@ -115,6 +118,7 @@ export default {
         renameBranch: '重新命名分支',
         merge: '合併',
         mergeIntoCurrent: '合併至目前分支',
+        mergeIntoCurrentWithSource: '合併 {source} 至目前分支',
         copyCommitHash: '複製提交雜湊',
         copyCommitMessage: '複製提交訊息',
         resetBranch: '重設分支',

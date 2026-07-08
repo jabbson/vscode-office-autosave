@@ -56,6 +56,7 @@ export const FONT_FAMILY_KEY = "editorFontFamily";
 export const CODE_FONT_FAMILY_KEY = "codeFontFamily";
 export const BOLD_COLOR_KEY = "boldColor";
 export const HTML_EDITOR_LINE_WRAP_KEY = "htmlEditorLineWrap";
+export const TYPEWRITER_MODE_KEY = "typewriterMode";
 export const LAST_NON_AUTO_EDITOR_THEME_KEY = "lastNonAutoEditorTheme";
 export const LAST_LIGHT_EDITOR_THEME_KEY = "lastLightEditorTheme";
 export const LAST_DARK_EDITOR_THEME_KEY = "lastDarkEditorTheme";
@@ -136,14 +137,14 @@ export const PAGE_WIDTH_OPTIONS = [
 ] as const;
 
 export const CODE_BLOCK_MAX_HEIGHT_KEY = "codeBlockMaxHeight";
-export const CODE_BLOCK_MAX_HEIGHT_DEFAULT = "400px";
+export const CODE_BLOCK_MAX_HEIGHT_DEFAULT = "none";
 
 export const CODE_BLOCK_MAX_HEIGHT_OPTIONS = [
     { label: "300px", value: "300px" },
-    { label: "Default", value: "400px" },
+    { label: "Default", value: "none" },
+    { label: "400px", value: "400px" },
     { label: "600px", value: "600px" },
     { label: "800px", value: "800px" },
-    { label: "Unlimited", value: "none" },
 ] as const;
 
 export const IMAGE_MAX_WIDTH_KEY = "imageMaxWidth";
@@ -327,6 +328,16 @@ export const setAIModels = (models: AIModel[]) => {
     setGlobalLocalStorageSetting(AI_MODELS_KEY, JSON.stringify(models));
 };
 
+export const applyPageWidthSetting = (vditorElement: HTMLElement, pageWidth?: string) => {
+    if (pageWidth !== undefined && pageWidth !== PAGE_WIDTH_DEFAULT) {
+        vditorElement.style.setProperty("--vditor-page-width", pageWidth);
+        vditorElement.setAttribute("data-page-width-mode", "fixed");
+        return;
+    }
+    vditorElement.style.removeProperty("--vditor-page-width");
+    vditorElement.setAttribute("data-page-width-mode", "fluid");
+};
+
 export const applyEditorSettings = (vditorElement: HTMLElement) => {
     const uiSize = getGlobalLocalStorageSetting<number>(UI_FONT_SIZE_KEY);
     const editorSize = getGlobalLocalStorageSetting<number>(EDITOR_FONT_SIZE_KEY);
@@ -347,9 +358,7 @@ export const applyEditorSettings = (vditorElement: HTMLElement) => {
         vditorElement.style.removeProperty("--code-font-family");
     }
     applyBoldColorSetting(vditorElement, boldColor);
-    if (pageWidth !== undefined && pageWidth !== PAGE_WIDTH_DEFAULT) {
-        vditorElement.style.setProperty("--vditor-page-width", pageWidth);
-    }
+    applyPageWidthSetting(vditorElement, pageWidth);
     if (imgMaxWidth !== undefined) vditorElement.style.setProperty("--vditor-image-max-width", `${imgMaxWidth}%`);
     if (imgMaxHeight !== undefined) vditorElement.style.setProperty("--vditor-image-max-height", `${imgMaxHeight}vh`);
     const codeBlockMaxHeight = getGlobalLocalStorageSetting<string>(CODE_BLOCK_MAX_HEIGHT_KEY);
@@ -358,7 +367,12 @@ export const applyEditorSettings = (vditorElement: HTMLElement) => {
     } else {
         vditorElement.style.removeProperty("--cm-block-max-height");
     }
+    applyTypewriterModeClass(vditorElement);
+};
 
+export const applyTypewriterModeClass = (vditorElement: HTMLElement, enabled?: boolean) => {
+    const on = enabled ?? getGlobalLocalStorageSetting<boolean>(TYPEWRITER_MODE_KEY, false) === true;
+    vditorElement.classList.toggle("vditor--typewriter", on);
 };
 
 /** @deprecated use applyEditorSettings */
