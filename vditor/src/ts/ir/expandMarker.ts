@@ -1,8 +1,13 @@
 import {hasClosestByClassName, hasTopClosestByClassName} from "../util/hasClosest";
 import {
+    escapeObsidianTagRange,
     escapeWikilinkRange,
+    focusObsidianTagEditingRange,
+    focusObsidianTagEditingRangeFromDisplay,
     focusWikilinkEditingRange,
     focusWikilinkEditingRangeFromDisplay,
+    isRangeInObsidianTagDisplay,
+    isRangeInObsidianTagEditingArea,
     isRangeInWikilinkDisplay,
     isRangeInWikilinkEditingArea,
     setSelectionFocus,
@@ -26,6 +31,32 @@ const focusExpandedWikilink = (nodeElement: HTMLElement, range: Range, atEnd = t
     }
     focusWikilinkEditingRange(range, nodeElement, atEnd);
     return true;
+};
+
+const focusExpandedObsidianTag = (nodeElement: HTMLElement, range: Range, atEnd = true, fromOutside = false) => {
+    if (nodeElement.getAttribute("data-type") !== "obsidian-tag") {
+        return false;
+    }
+    if (!fromOutside) {
+        if (isRangeInObsidianTagDisplay(nodeElement, range)) {
+            focusObsidianTagEditingRangeFromDisplay(range, nodeElement);
+            return true;
+        }
+        if (isRangeInObsidianTagEditingArea(nodeElement, range)) {
+            setSelectionFocus(range);
+            return true;
+        }
+        return false;
+    }
+    focusObsidianTagEditingRange(range, nodeElement, atEnd);
+    return true;
+};
+
+const focusExpandedInlineNode = (nodeElement: HTMLElement, range: Range, atEnd = true, fromOutside = false) => {
+    if (focusExpandedWikilink(nodeElement, range, atEnd, fromOutside)) {
+        return true;
+    }
+    return focusExpandedObsidianTag(nodeElement, range, atEnd, fromOutside);
 };
 
 const nextIsNode = (range: Range) => {
@@ -79,7 +110,7 @@ export const expandMarker = (range: Range, root: HTMLElement) => {
         }
         const element = item as HTMLElement;
         const dataType = element.getAttribute("data-type");
-        if (dataType === "wikilink" || dataType === "wikilink-embed") {
+        if (dataType === "wikilink" || dataType === "wikilink-embed" || dataType === "obsidian-tag") {
             collapsedExpandedWikilink = element;
         }
         element.classList.remove("vditor-ir__node--expand");
@@ -99,9 +130,13 @@ export const expandMarker = (range: Range, root: HTMLElement) => {
         nodeElement.classList.add("vditor-ir__node--expand");
         nodeElement.classList.remove("vditor-ir__node--hidden");
         // https://github.com/Vanessa219/vditor/issues/615 safari中光标位置跳动
-        if (!focusExpandedWikilink(nodeElement, range)) {
+        if (!focusExpandedInlineNode(nodeElement, range)) {
             nodeElement.classList.remove("vditor-ir__node--expand");
-            escapeWikilinkRange(range, nodeElement);
+            if (nodeElement.getAttribute("data-type") === "obsidian-tag") {
+                escapeObsidianTagRange(range, nodeElement);
+            } else {
+                escapeWikilinkRange(range, nodeElement);
+            }
             setSelectionFocus(range);
         }
         return;
@@ -114,7 +149,7 @@ export const expandMarker = (range: Range, root: HTMLElement) => {
         }
         nextNode.classList.add("vditor-ir__node--expand");
         nextNode.classList.remove("vditor-ir__node--hidden");
-        focusExpandedWikilink(nextNode, range, false, true);
+        focusExpandedInlineNode(nextNode, range, false, true);
         return;
     }
 
@@ -125,7 +160,7 @@ export const expandMarker = (range: Range, root: HTMLElement) => {
         }
         previousNode.classList.add("vditor-ir__node--expand");
         previousNode.classList.remove("vditor-ir__node--hidden");
-        focusExpandedWikilink(previousNode, range, true, true);
+        focusExpandedInlineNode(previousNode, range, true, true);
         return;
     }
 };

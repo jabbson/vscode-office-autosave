@@ -262,6 +262,92 @@ export const selectIsEditor = (editor: HTMLElement, range?: Range) => {
     return editor.isEqualNode(container) || editor.contains(container);
 };
 
+const getObsidianTagSourceElement = (tag: HTMLElement): HTMLElement | null => {
+    for (let i = 0; i < tag.children.length; i++) {
+        const child = tag.children[i];
+        if (!(child instanceof HTMLElement)) {
+            continue;
+        }
+        if (child.classList.contains("vditor-obsidian-tag__source")) {
+            return child;
+        }
+    }
+    return null;
+};
+
+const getInlineEditableSourceElement = (node: HTMLElement): HTMLElement | null => {
+    return getWikilinkSourceElement(node) || getObsidianTagSourceElement(node);
+};
+
+export const isRangeInObsidianTagDisplay = (tag: HTMLElement, range: Range) => {
+    const display = tag.querySelector(".vditor-obsidian-tag__display");
+    if (!display) {
+        return false;
+    }
+    if (display.contains(range.startContainer)) {
+        return true;
+    }
+    if (range.startContainer === tag) {
+        const child = tag.childNodes[range.startOffset];
+        return !!child && (display === child || display.contains(child));
+    }
+    return false;
+};
+
+const isRangeInObsidianTagSource = (tag: HTMLElement, range: Range) => {
+    const source = getObsidianTagSourceElement(tag);
+    if (!source) {
+        return false;
+    }
+    if (source.contains(range.startContainer)) {
+        return true;
+    }
+    if (range.startContainer === tag) {
+        const child = tag.childNodes[range.startOffset];
+        return !!child && (source === child || source.contains(child));
+    }
+    return false;
+};
+
+export const isRangeInObsidianTagEditingArea = (tag: HTMLElement, range: Range) => {
+    return isRangeInObsidianTagSource(tag, range);
+};
+
+export const escapeObsidianTagRange = (range: Range, tag: HTMLElement) => {
+    if (range.startContainer === tag) {
+        if (range.startOffset > tag.childNodes.length / 2) {
+            range.setStartAfter(tag);
+        } else {
+            range.setStartBefore(tag);
+        }
+        range.collapse(true);
+        return;
+    }
+    if (tag.contains(range.startContainer)) {
+        range.setStartAfter(tag);
+        range.collapse(true);
+    }
+};
+
+export const focusObsidianTagEditingRangeFromDisplay = (range: Range, tag: HTMLElement) => {
+    const source = getObsidianTagSourceElement(tag);
+    const display = tag.querySelector(".vditor-obsidian-tag__display");
+    if (!source || !display) {
+        focusObsidianTagEditingRange(range, tag);
+        return;
+    }
+    const displayOffset = getTextOffsetInElement(display as HTMLElement, range);
+    if (!setRangeAtStrippedTextOffset(source, range, displayOffset)) {
+        focusInlineNodeTextRange(range, tag, displayOffset > 0);
+    }
+    setSelectionFocus(range);
+};
+
+export const focusObsidianTagEditingRange = (range: Range, tag: HTMLElement, atEnd = true) => {
+    focusInlineNodeTextRange(range, tag, atEnd);
+    setSelectionFocus(range);
+};
+
 const getWikilinkSourceElement = (wikilink: HTMLElement): HTMLElement | null => {
     for (let i = 0; i < wikilink.children.length; i++) {
         const child = wikilink.children[i];
@@ -428,7 +514,7 @@ export const focusWikilinkEditingRange = (range: Range, wikilink: HTMLElement, a
 };
 
 const focusInlineNodeTextRange = (range: Range, node: HTMLElement, atEnd: boolean) => {
-    const source = getWikilinkSourceElement(node);
+    const source = getInlineEditableSourceElement(node);
     const target = source || node;
     let textNode: Text | null = null;
     let lastText: Text | null = null;
@@ -571,7 +657,8 @@ export const setRangeByWbr = (element: HTMLElement, range: Range) => {
     }
     const contentSpan = wbrElement.parentElement;
     if (contentSpan && (contentSpan.getAttribute("data-newline") === "1"
-        || contentSpan.classList.contains("vditor-wikilink__source"))) {
+        || contentSpan.classList.contains("vditor-wikilink__source")
+        || contentSpan.classList.contains("vditor-obsidian-tag__source"))) {
         if (wbrElement.previousSibling?.nodeType === Node.TEXT_NODE) {
             range.setStart(wbrElement.previousSibling, wbrElement.previousSibling.textContent.length);
         } else if (wbrElement.nextSibling?.nodeType === Node.TEXT_NODE) {
