@@ -22,6 +22,7 @@ import { xtoast } from './message';
 import { cssPrefix } from '../config';
 import { formulaMenuItems } from '../core/formula';
 import { CellRange } from '../core/cell_range';
+import { expr2xy, xy2expr } from '../core/alphabet';
 
 const SCROLL_EXPAND_THRESHOLD = 40;
 const HYPERLINK_CLICK_THRESHOLD = 5;
@@ -226,6 +227,107 @@ function selectorSet(multiple, ri, ci, indexesUpdated = true, moving = false) {
   contextMenu.setMode((ri === -1 || ci === -1) ? 'row-col' : 'range');
   toolbar.reset();
   table.render();
+}
+
+function isFormulaReferenceSelecting(sheet) {
+  return !!(sheet.formulaEditTarget && sheet.editor.cell !== null);
+}
+
+function rangeToFormulaReference(range) {
+  const { sri, sci, eri, eci } = range;
+  const start = xy2expr(sci, sri);
+  const end = xy2expr(eci, eri);
+  return start === end ? start : `${start}:${end}`;
+}
+
+function normalizeFormulaRef(ref) {
+  return ref.replace(/\$/g, '').toUpperCase();
+}
+
+function parseFormulaReference(text) {
+  if (!/^=/.test(text || '')) return null;
+  const refRegex = /\$?[A-Z]{1,3}\$?\d+(?::\$?[A-Z]{1,3}\$?\d+)?/ig;
+  const match = refRegex.exec(text);
+  if (!match) return null;
+  const [startRef, endRef = startRef] = match[0].split(':').map(normalizeFormulaRef);
+  try {
+    const [sci, sri] = expr2xy(startRef);
+    const [eci, eri] = expr2xy(endRef);
+    if ([sri, sci, eri, eci].some(v => Number.isNaN(v) || v < 0)) return null;
+    return {
+      range: new CellRange(
+        Math.min(sri, eri),
+        Math.min(sci, eci),
+        Math.max(sri, eri),
+        Math.max(sci, eci),
+      ),
+      textStart: match.index,
+      textEnd: match.index + match[0].length,
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+function formulaCursorPosition(text) {
+  if (!/^=/.test(text || '')) return null;
+  const parsed = parseFormulaReference(text);
+  if (parsed) return parsed.textEnd;
+  const openIndex = text.indexOf('(');
+  if (openIndex >= 0) return openIndex + 1;
+  return null;
+}
+
+function updateFormulaReferenceSelection(sheet) {
+  if (!isFormulaReferenceSelecting(sheet)) return;
+  sheet.editor.setFormulaReference(rangeToFormulaReference(sheet.selector.range));
+}
+
+function finishFormulaReferenceSelection(sheet) {
+  sheet.formulaEditTarget = null;
+  sheet.selector.el.removeClass('formula-reference-mode');
+  sheet.editor.setFormulaTargetActive(false);
+}
+
+function setEditSnapshot(sheet, ri, ci, text) {
+  sheet.editSnapshot = { ri, ci, text };
+}
+
+function clearEditSnapshot(sheet) {
+  sheet.editSnapshot = null;
+}
+
+function cancelCellEdit(sheet) {
+  const { data, editor, table } = sheet;
+  const snapshot = sheet.editSnapshot;
+  const target = snapshot || sheet.formulaEditTarget;
+  if (!target) return false;
+  if (snapshot) {
+    data.setCellText(snapshot.ri, snapshot.ci, snapshot.text, 'input');
+  }
+  finishFormulaReferenceSelection(sheet);
+  clearEditSnapshot(sheet);
+  editor.cancel();
+  selectorSet.call(sheet, false, target.ri, target.ci);
+  table.render();
+  return true;
+}
+
+function restoreFormulaReferenceSelection(sheet, targetRi, targetCi, formulaText) {
+  const parsed = parseFormulaReference(formulaText);
+  if (!parsed) return false;
+  const { data, editor, selector, table } = sheet;
+  const { range, textStart, textEnd } = parsed;
+  sheet.formulaEditTarget = { ri: targetRi, ci: targetCi };
+  data.selector.setIndexes(range.sri, range.sci);
+  selector.set(range.sri, range.sci);
+  selector.setEnd(range.eri, range.eci, false);
+  selector.el.addClass('formula-reference-mode');
+  editor.setFormulaTargetActive(true);
+  editor.setFormulaReferenceRange(textStart, textEnd);
+  editor.setCursorPosition(textEnd);
+  table.render();
+  return true;
 }
 
 // multiple: boolean
@@ -641,6 +743,7 @@ function overlayerMousedown(evt) {
       selector.showAutofill(ri, ci);
     } else {
       selectorSet.call(this, false, ri, ci);
+      updateFormulaReferenceSelection(this);
     }
 
     // mouse move up
@@ -654,6 +757,7 @@ function overlayerMousedown(evt) {
         selector.showAutofill(ri, ci);
       } else if (e.buttons === 1 && !e.shiftKey) {
         selectorSet.call(this, true, ri, ci, true, true);
+        updateFormulaReferenceSelection(this);
       }
     }, (e) => {
       if (hyperlinkPress) {
@@ -685,13 +789,21 @@ function overlayerMousedown(evt) {
     if (evt.shiftKey) {
       // console.log('shiftKey::::');
       selectorSet.call(this, true, ri, ci);
+      updateFormulaReferenceSelection(this);
     }
   }
 }
 
 function editorSetOffset() {
   const { editor, data } = this;
-  const sOffset = data.getSelectedRect();
+  const sOffset = this.formulaEditTarget
+    ? data.getRect(new CellRange(
+      this.formulaEditTarget.ri,
+      this.formulaEditTarget.ci,
+      this.formulaEditTarget.ri,
+      this.formulaEditTarget.ci,
+    ))
+    : data.getSelectedRect();
   const tOffset = this.getTableOffset();
   let sPosition = 'top';
   // console.log('sOffset:', sOffset, ':', tOffset);
@@ -706,14 +818,23 @@ function editorSet() {
   if (data.settings.mode === 'read') return;
   const { ri, ci } = data.selector;
   if (!data.canEditCell(ri, ci)) return;
+  const cell = data.getSelectedCell();
+  const cellText = (cell && cell.text) || '';
+  setEditSnapshot(this, ri, ci, cellText);
   editorSetOffset.call(this);
   editor.setCell(
-    data.getSelectedCell(),
+    cell,
     data.getSelectedValidator(),
     data.getSelectedCellStyle(),
   );
   clearClipboard.call(this);
   selector.hideArea();
+  if (!restoreFormulaReferenceSelection(this, ri, ci, cellText)) {
+    const cursorPosition = formulaCursorPosition(cellText);
+    if (cursorPosition !== null) {
+      editor.setCursorPosition(cursorPosition);
+    }
+  }
 }
 
 function verticalScrollbarMove(distance) {
@@ -787,8 +908,17 @@ function dataSetCellText(text, state = 'finished') {
   const { data, table } = this;
   // const [ri, ci] = selector.indexes;
   if (data.settings.mode === 'read') return;
-  const { ri, ci } = data.selector;
-  data.setSelectedCellText(text, state);
+  const target = this.formulaEditTarget;
+  const { ri, ci } = target || data.selector;
+  if (target) {
+    data.setCellText(ri, ci, text, state);
+  } else {
+    data.setSelectedCellText(text, state);
+  }
+  if (state === 'finished') {
+    finishFormulaReferenceSelection(this);
+    clearEditSnapshot(this);
+  }
   if (state === 'finished') {
     table.render();
     const err = data.getValidationError(ri, ci);
@@ -828,6 +958,22 @@ function insertDeleteRowColumn(type) {
   }
   clearClipboard.call(this);
   sheetReset.call(this);
+}
+
+function beginFormulaReferenceInput(formulaName) {
+  const { data } = this;
+  const { ri, ci } = data.selector;
+  if (!data.canEditCell(ri, ci)) return;
+  const oldCell = data.getSelectedCell();
+  const oldText = (oldCell && oldCell.text) || '';
+  const formulaText = `=${formulaName}()`;
+  this.formulaEditTarget = { ri, ci };
+  data.setCellText(ri, ci, formulaText, 'input');
+  editorSet.call(this);
+  setEditSnapshot(this, ri, ci, oldText);
+  this.editor.setText(formulaText, formulaName.length + 2);
+  this.selector.el.addClass('formula-reference-mode');
+  this.editor.setFormulaTargetActive(true);
 }
 
 function toolbarChange(type, value) {
@@ -873,15 +1019,14 @@ function toolbarChange(type, value) {
     } else {
       this.freeze(0, 0);
     }
+  } else if (type === 'formula' && !data.selector.multiple()) {
+    beginFormulaReferenceInput.call(this, value);
   } else {
     data.setSelectedCellAttr(type, value);
     if (type === 'font-name' || type === 'font-size' || type === 'font-bold' || type === 'font-italic') {
       if (editor.cell) {
         editor.applyCellStyle(data.getSelectedCellStyle());
       }
-    }
-    if (type === 'formula' && !data.selector.multiple()) {
-      editorSet.call(this);
     }
     sheetReset.call(this);
   }
@@ -933,7 +1078,9 @@ function sheetInitEvents() {
       overlayerMousemove.call(this, evt);
     })
     .on('mousedown', (evt) => {
-      editor.clear();
+      if (!isFormulaReferenceSelecting(this)) {
+        editor.clear();
+      }
       contextMenu.hide();
       // the left mouse button: mousedown → mouseup → click
       // the right mouse button: mousedown → contenxtmenu → mouseup
@@ -1024,6 +1171,10 @@ function sheetInitEvents() {
   }
   // editor
   editor.change = (state, itext) => {
+    if (state === 'cancel') {
+      cancelCellEdit(this);
+      return;
+    }
     dataSetCellText.call(this, itext, state);
   };
   // modal validation
@@ -1153,6 +1304,10 @@ function sheetInitEvents() {
           }
           break;
         case 27: // esc
+          if (cancelCellEdit(this)) {
+            evt.preventDefault();
+            break;
+          }
           contextMenu.hide();
           clearClipboard.call(this);
           break;
@@ -1218,6 +1373,8 @@ export default class Sheet {
     this.pasteTextOnly = false;
     this.skipNextPaste = false;
     this.lastZoomWheelAt = 0;
+    this.formulaEditTarget = null;
+    this.editSnapshot = null;
     const { view, showToolbar, showContextmenu } = data.settings;
     this.el = h('div', `${cssPrefix}-sheet`);
     this.toolbar = new Toolbar(data, view.width, !showToolbar);

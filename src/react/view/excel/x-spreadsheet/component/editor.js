@@ -77,6 +77,11 @@ function insertText({ target }, itxt) {
 function keydownEventHandler(evt) {
   const { keyCode, altKey } = evt;
   if (keyCode !== 13 && keyCode !== 9) evt.stopPropagation();
+  if (keyCode === 27) {
+    evt.preventDefault();
+    this.change('cancel', this.inputText);
+    return;
+  }
   // macOS Option key inserts special symbols; allow Option+Enter for newline only
   if (altKey && keyCode !== 13) {
     evt.preventDefault();
@@ -86,7 +91,10 @@ function keydownEventHandler(evt) {
     insertText.call(this, evt, '\n');
     evt.stopPropagation();
   }
-  if (keyCode === 13 && !altKey) evt.preventDefault();
+  if (keyCode === 13 && !altKey) {
+    evt.preventDefault();
+    this.clear();
+  }
   // 不知道为什么单元格事件被吞了, Windows上正常
   if (evt.metaKey && navigator.userAgent.includes('Mac OS')) {
     const newEvent = new evt.constructor(evt.type, evt);
@@ -99,6 +107,7 @@ function inputEventHandler(evt) {
   // console.log(evt, 'v:', v);
   const { suggest, textlineEl, validator } = this;
   const { cell } = this;
+  this.referenceRange = null;
   if (cell !== null) {
     if (('editable' in cell && cell.editable === true) || (cell.editable === undefined)) {
       this.inputText = v;
@@ -189,6 +198,15 @@ function resetSuggestItems() {
   this.suggest.setItems(this.formulas);
 }
 
+function updateEditorText(editor, text, position) {
+  editor.inputText = text;
+  editor.textEl.val(text);
+  editor.textlineEl.html(text);
+  editor.textEl.el.focus();
+  editor.textEl.el.setSelectionRange(position, position);
+  resetTextareaSize.call(editor);
+}
+
 function dateFormat(d) {
   let month = d.getMonth() + 1;
   let date = d.getDate();
@@ -231,6 +249,7 @@ export default class Editor {
     this.freeze = { w: 0, h: 0 };
     this.cell = null;
     this.inputText = '';
+    this.referenceRange = null;
     this.change = () => { };
   }
 
@@ -248,6 +267,21 @@ export default class Editor {
     this.cell = null;
     this.areaOffset = null;
     this.inputText = '';
+    this.referenceRange = null;
+    this.setFormulaTargetActive(false);
+    this.el.hide();
+    this.textEl.val('');
+    this.textlineEl.html('');
+    resetSuggestItems.call(this);
+    this.datepicker.hide();
+  }
+
+  cancel() {
+    this.cell = null;
+    this.areaOffset = null;
+    this.inputText = '';
+    this.referenceRange = null;
+    this.setFormulaTargetActive(false);
     this.el.hide();
     this.textEl.val('');
     this.textlineEl.html('');
@@ -318,11 +352,42 @@ export default class Editor {
     }
   }
 
-  setText(text) {
+  setText(text, position = text.length) {
     this.inputText = text;
+    this.referenceRange = null;
     // console.log('text>>:', text);
-    setText.call(this, text, text.length);
+    setText.call(this, text, position);
     resetTextareaSize.call(this);
+  }
+
+  setFormulaReference(referenceText) {
+    const textarea = this.textEl.el;
+    const value = textarea.value;
+    let start = textarea.selectionStart == null ? value.length : textarea.selectionStart;
+    let end = textarea.selectionEnd == null ? start : textarea.selectionEnd;
+
+    if (this.referenceRange && this.referenceRange.end <= value.length) {
+      start = this.referenceRange.start;
+      end = this.referenceRange.end;
+    }
+
+    const nextText = `${value.slice(0, start)}${referenceText}${value.slice(end)}`;
+    const nextPosition = start + referenceText.length;
+    this.referenceRange = { start, end: nextPosition };
+    updateEditorText(this, nextText, nextPosition);
+    this.change('input', nextText);
+  }
+
+  setFormulaReferenceRange(start, end) {
+    this.referenceRange = { start, end };
+  }
+
+  setCursorPosition(position) {
+    setTextareaRange.call(this, position);
+  }
+
+  setFormulaTargetActive(active) {
+    this.el.active(active, 'formula-target-mode');
   }
 
   applyCellStyle(cellStyle) {

@@ -515,8 +515,28 @@ body:has(.excel-app) {
         background: var(--excel-selection);
     }
 
+    .x-spreadsheet-selector.formula-reference-mode {
+        .x-spreadsheet-selector-area {
+            border-color: var(--vscode-textLink-foreground, #3794ff);
+            background: color-mix(in srgb, var(--vscode-textLink-foreground, #3794ff) 18%, transparent);
+        }
+
+        .x-spreadsheet-selector-corner {
+            background: var(--vscode-textLink-foreground, #3794ff);
+        }
+    }
+
     .x-spreadsheet-editor .x-spreadsheet-editor-area {
         border-color: var(--excel-selection);
+    }
+
+    .x-spreadsheet-editor.formula-target-mode .x-spreadsheet-editor-area {
+        border-color: var(--excel-selection);
+        box-shadow:
+            0 0 0 2px var(--excel-cell-bg, #ffffff),
+            0 0 0 5px color-mix(in srgb, var(--excel-selection) 34%, transparent),
+            0 0 14px color-mix(in srgb, var(--excel-selection) 42%, transparent);
+        background-color: color-mix(in srgb, var(--excel-selection) 8%, var(--excel-cell-bg, #ffffff));
     }
 
     .x-spreadsheet-bottombar {
