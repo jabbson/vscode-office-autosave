@@ -75,7 +75,7 @@ export default class SheetImages {
     this.data = null;
     this.editable = false;
     this.onChange = null;
-    this.activeIndex = -1;
+    this.selectedIndex = -1;
   }
 
   setEditable(editable) {
@@ -87,11 +87,32 @@ export default class SheetImages {
     this.onChange = fn;
   }
 
+  clearSelection() {
+    if (this.selectedIndex < 0) return;
+    const prev = this.items[this.selectedIndex];
+    if (prev) {
+      prev.wrapEl.removeClass('selected');
+      prev.wrapEl.removeClass('dragging');
+      prev.wrapEl.removeClass('resizing');
+    }
+    this.selectedIndex = -1;
+    this.updatePositions();
+  }
+
+  select(index) {
+    if (index === this.selectedIndex) return;
+    this.clearSelection();
+    if (index < 0 || index >= this.items.length) return;
+    this.selectedIndex = index;
+    this.items[index].wrapEl.addClass('selected');
+    this.updatePositions();
+  }
+
   reset(data) {
     this.data = data;
     this.el.html('');
     this.items = [];
-    this.activeIndex = -1;
+    this.selectedIndex = -1;
     const images = data.images || [];
     for (let i = 0; i < images.length; i += 1) {
       const image = images[i];
@@ -133,7 +154,7 @@ export default class SheetImages {
     const startY = evt.clientY;
     let moved = false;
 
-    this.activeIndex = index;
+    this.select(index);
     item.wrapEl.addClass('dragging');
 
     mouseMoveUp(window, (e) => {
@@ -152,7 +173,6 @@ export default class SheetImages {
       this.updatePositions();
     }, () => {
       item.wrapEl.removeClass('dragging');
-      this.activeIndex = -1;
       if (moved && this.onChange) {
         this.onChange();
       }
@@ -171,7 +191,7 @@ export default class SheetImages {
     const startY = evt.clientY;
     let resized = false;
 
-    this.activeIndex = index;
+    this.select(index);
     item.wrapEl.addClass('resizing');
 
     mouseMoveUp(window, (e) => {
@@ -192,7 +212,6 @@ export default class SheetImages {
       this.updatePositions();
     }, () => {
       item.wrapEl.removeClass('resizing');
-      this.activeIndex = -1;
       if (resized && this.onChange) {
         this.onChange();
       }
@@ -209,7 +228,7 @@ export default class SheetImages {
         wrapEl.hide();
         continue;
       }
-      const zIndex = (i === this.activeIndex) ? 2 : 1;
+      const zIndex = (i === this.selectedIndex) ? 2 : 1;
       wrapEl.show().css({
         position: 'absolute',
         left: `${rect.left}px`,

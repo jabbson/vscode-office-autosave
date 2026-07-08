@@ -705,8 +705,10 @@ function overlayerMousedown(evt) {
   // console.log(':::::overlayer.mousedown:', evt.detail, evt.button, evt.buttons, evt.shiftKey);
   // console.log('evt.target.className:', evt.target.className);
   const {
-    selector, data, table, sortFilter,
+    selector, data, table, sortFilter, sheetImages,
   } = this;
+  // Cell selection must not keep / show floating image selection.
+  if (sheetImages) sheetImages.clearSelection();
   const { offsetX, offsetY } = evt;
   const isAutofillEl = evt.target.className === `${cssPrefix}-selector-corner`;
   const cellRect = data.getCellRectByXY(offsetX, offsetY);
