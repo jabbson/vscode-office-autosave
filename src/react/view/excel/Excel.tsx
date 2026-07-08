@@ -40,7 +40,7 @@ function loadExcelColorMode(): ExcelColorMode {
             return 'light';
         }
     } catch { }
-    return 'adaptive';
+    return 'light';
 }
 
 function saveExcelColorMode(mode: ExcelColorMode) {
