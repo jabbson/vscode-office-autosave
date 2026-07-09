@@ -55,6 +55,12 @@
     scrollbar-color: var(--vscode-scrollbarSlider-background, #c9d1d9) var(--git-graph-bg);
 }
 
+body[data-vscode-theme-id="One Dark Modern"] .git-graph:not(.git-graph-light) {
+    --git-graph-primary-btn-bg: #4d78cc !important;
+    --git-graph-primary-btn-bg-hover: #5a86e0 !important;
+    --git-graph-primary-btn-fg: #ffffff !important;
+}
+
 .git-graph ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
