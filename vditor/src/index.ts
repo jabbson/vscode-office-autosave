@@ -40,7 +40,8 @@ import { getSelectText } from "./ts/util/getSelectText";
 import { Options } from "./ts/util/Options";
 import { processCodeRender } from "./ts/util/processCode";
 import { hasClosestBlock } from "./ts/util/hasClosest";
-import { getCursorPosition, getEditorRange, insertMdForAIReplace, setSelectionFocus } from "./ts/util/selection";
+import { getCursorPosition, getEditorRange, insertHTML, insertMdForAIReplace, setSelectionFocus } from "./ts/util/selection";
+import { markOutlineEditing } from "./ts/outline/updateOutlineActive";
 import { recordHistoryChange } from "./ts/util/instantHistory";
 import {
     captureEditorSelection,
@@ -351,6 +352,22 @@ class Vditor {
                 irInput(this.vditor, getSelection().getRangeAt(0), true);
             }
         }
+    }
+
+    /** 在焦点处插入 Markdown，行为与粘贴纯文本 Markdown 一致 */
+    public insertMarkdown(markdown: string) {
+        const vditor = this.vditor;
+        vditor[vditor.currentMode].element.focus();
+        if (vditor.currentMode === "ir") {
+            insertHTML(vditor.lute.Md2VditorIRDOM(markdown), vditor);
+        } else if (vditor.currentMode === "wysiwyg") {
+            insertHTML(vditor.lute.Md2VditorDOM(markdown), vditor);
+        } else {
+            document.execCommand("insertText", false, markdown);
+        }
+        markOutlineEditing(vditor);
+        vditor.outline.render(vditor);
+        recordHistoryChange(vditor);
     }
 
     /** 设置编辑器内容 */

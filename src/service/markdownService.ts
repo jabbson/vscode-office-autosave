@@ -155,9 +155,6 @@ export class MarkdownService {
                         edit.replace(current, `![${imgName}](${relPath})`);
                     }
                 });
-            } else {
-                vscode.env.clipboard.writeText(`![${imgName}](${relPath})`)
-                vscode.commands.executeCommand("editor.action.clipboardPasteAction")
             }
         })
     }

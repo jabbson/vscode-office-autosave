@@ -258,15 +258,10 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
         }).on("img", async (payload) => {
             const imgData: string = typeof payload === 'string' ? payload : payload.data;
             const ext: string = typeof payload === 'string' ? 'png' : (payload.ext || 'png');
-            const { relPath, fullPath } = adjustImgPath(uri, ext);
-            const imagePath = isAbsolute(fullPath) ? fullPath : `${resolve(uri.fsPath, "..")}/${relPath}`.replace(/\\/g, "/");
-            const imageUri = vscode.Uri.file(imagePath);
-            await ensureParentDirectory(imageUri);
-            await vscode.workspace.fs.writeFile(imageUri, Uint8Array.from(Buffer.from(imgData, 'binary')));
-            const fileName = parse(relPath).name;
-            const adjustRelPath = await MarkdownService.imgExtGuide(imagePath, relPath);
-            vscode.env.clipboard.writeText(`![${fileName}](${adjustRelPath})`);
-            vscode.commands.executeCommand("editor.action.clipboardPasteAction");
+            const imageMarkdown = await this.saveImageAndBuildMarkdown(uri, imgData, ext);
+            if (imageMarkdown) {
+                handler.emit('insertImageMarkdown', imageMarkdown);
+            }
         }).on("insertImage", async () => {
             const files = await vscode.window.showOpenDialog({
                 canSelectMany: false,
@@ -276,16 +271,11 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             if (!files || files.length === 0) return;
             const sourceUri = files[0];
             const ext = parse(sourceUri.fsPath).ext.replace('.', '').toLowerCase() || 'png';
-            const { relPath, fullPath } = adjustImgPath(uri, ext);
-            const imagePath = isAbsolute(fullPath) ? fullPath : `${resolve(uri.fsPath, "..")}/${relPath}`.replace(/\\/g, "/");
-            const imageUri = vscode.Uri.file(imagePath);
-            await ensureParentDirectory(imageUri);
             const fileBytes = await vscode.workspace.fs.readFile(sourceUri);
-            await vscode.workspace.fs.writeFile(imageUri, fileBytes);
-            const fileName = parse(relPath).name;
-            const adjustRelPath = await MarkdownService.imgExtGuide(imagePath, relPath);
-            vscode.env.clipboard.writeText(`![${fileName}](${adjustRelPath})`);
-            vscode.commands.executeCommand("editor.action.clipboardPasteAction");
+            const imageMarkdown = await this.saveImageAndBuildMarkdown(uri, fileBytes, ext);
+            if (imageMarkdown) {
+                handler.emit('insertImageMarkdown', imageMarkdown);
+            }
         }).on("editInVSCode", (full: boolean) => {
             const side = full ? vscode.ViewColumn.Active : vscode.ViewColumn.Beside;
             vscode.commands.executeCommand('vscode.openWith', uri, "default", side);
@@ -490,6 +480,24 @@ export class MarkdownEditorProvider implements vscode.CustomTextEditorProvider {
             isWeb: this.options.isWeb,
             isDev: this.context.extensionMode === vscode.ExtensionMode.Development,
         };
+    }
+
+    private async saveImageAndBuildMarkdown(
+        documentUri: vscode.Uri,
+        imageData: string | Uint8Array,
+        ext: string,
+    ): Promise<string | undefined> {
+        const { relPath, fullPath } = adjustImgPath(documentUri, ext);
+        const imagePath = isAbsolute(fullPath) ? fullPath : `${resolve(documentUri.fsPath, "..")}/${relPath}`.replace(/\\/g, "/");
+        const imageUri = vscode.Uri.file(imagePath);
+        await ensureParentDirectory(imageUri);
+        const bytes = typeof imageData === 'string'
+            ? Uint8Array.from(Buffer.from(imageData, 'binary'))
+            : imageData;
+        await vscode.workspace.fs.writeFile(imageUri, bytes);
+        const fileName = parse(relPath).name;
+        const adjustRelPath = await MarkdownService.imgExtGuide(imagePath, relPath);
+        return `![${fileName}](${adjustRelPath})`;
     }
 
     private updateCount(content: string) {

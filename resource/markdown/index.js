@@ -143,6 +143,9 @@ handler.on("open", async (md) => {
         editor.setValue(content);
         editor.markSaved();
       })
+      handler.on("insertImageMarkdown", (markdown) => {
+        editor.insertMarkdown(markdown);
+      })
       handler.on("gotoBlock", (fragment) => {
         if (fragment) {
           editor.scrollToBlock(fragment);
