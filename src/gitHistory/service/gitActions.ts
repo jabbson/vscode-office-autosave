@@ -173,6 +173,14 @@ export class GitActions {
         }
     }
 
+    async hasUncommittedChanges(repo: string): Promise<boolean> {
+        return this.executor.spawn(
+            ['status', '--porcelain', '--untracked-files=all'],
+            repo,
+            (stdout) => stdout.trim().length > 0,
+        );
+    }
+
     async quickSync(
         repo: string,
         branch: string,
@@ -181,11 +189,7 @@ export class GitActions {
         options?: { noFastForward?: boolean; squash?: boolean },
     ): Promise<string | null> {
         try {
-            const dirty = await this.executor.spawn(
-                ['status', '--porcelain'],
-                repo,
-                (stdout) => stdout.trim().length > 0,
-            );
+            const dirty = await this.hasUncommittedChanges(repo);
             if (dirty) {
                 await this.executor.spawn(['add', '-A'], repo, () => null);
                 const message = commitMessage.trim() || 'Quick Sync';
