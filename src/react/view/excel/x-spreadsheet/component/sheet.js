@@ -14,6 +14,7 @@ import Print from './print';
 import ContextMenu from './contextmenu';
 import Table from './table';
 import Toolbar from './toolbar/index';
+import FormulaBar from './formula_bar';
 import ModalValidation from './modal_validation';
 import ModalHyperlink from './modal_hyperlink';
 import SortFilter from './sort_filter';
@@ -235,6 +236,7 @@ function selectorSet(multiple, ri, ci, indexesUpdated = true, moving = false) {
     this.trigger('cell-selected', cell, ri, ci);
   }
   contextMenu.setMode((ri === -1 || ci === -1) ? 'row-col' : 'range');
+  this.formulaBar.update();
   toolbar.reset();
   table.render();
 }
@@ -933,11 +935,14 @@ function dataSetCellText(text, state = 'finished') {
   }
   if (state === 'finished') {
     table.render();
+    this.formulaBar.update(text);
     const err = data.getValidationError(ri, ci);
     if (err) {
       this.trigger('validation-error', err);
     }
   } else {
+    table.render();
+    this.formulaBar.update(text);
     this.trigger('cell-edited', text, ri, ci);
   }
 }
@@ -1390,8 +1395,14 @@ export default class Sheet {
     const { view, showToolbar, showContextmenu } = data.settings;
     this.el = h('div', `${cssPrefix}-sheet`);
     this.toolbar = new Toolbar(data, view.width, !showToolbar);
+    this.formulaBar = new FormulaBar(
+      data,
+      text => dataSetCellText.call(this, text, 'finished'),
+      text => dataSetCellText.call(this, text, 'input'),
+      (ri, ci) => this.scrollToCell(ri, ci),
+    );
     this.print = new Print(data);
-    targetEl.children(this.toolbar.el, this.el, this.print.el);
+    targetEl.children(this.toolbar.el, this.formulaBar.el, this.el, this.print.el);
     this.data = data;
     // table
     this.tableEl = h('canvas', `${cssPrefix}-table`);
@@ -1470,6 +1481,7 @@ export default class Sheet {
     verticalScrollbarSet.call(this);
     horizontalScrollbarSet.call(this);
     this.toolbar.resetData(data);
+    this.formulaBar.resetData(data);
     this.toolbar.setSaveEnabled(false);
     this.print.resetData(data);
     this.selector.resetData(data);
