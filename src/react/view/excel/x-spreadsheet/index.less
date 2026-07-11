@@ -255,7 +255,7 @@ body {
       width: 10px;
       margin-right: 4px;
       .arrow-down {
-        left: -130px;
+        left: -4px;
       }
     }
   }
@@ -1256,192 +1256,131 @@ form fieldset {
   display: inline-block;
   line-height: 0;
 
-  .@{css-prefix}-icon-img {
-    background-image: url('./assets/sprite.svg');
-    position: absolute;
-    width: 262px;
-    height: 444px;
-    opacity: 0.56;
+  .@{css-prefix}-icon-flip-horizontal {
+    transform: scaleX(-1);
+  }
 
-    &.undo {
-      left: 0;
-      top: 0;
-    }
-    &.redo {
-      left: -1 * @icon-size;
-      top: 0;
-    }
+  .@{css-prefix}-icon-img {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: @icon-size;
+    height: @icon-size;
+    opacity: 0.56;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: @icon-size @icon-size;
+
     &.print {
-      left: -2 * @icon-size;
-      top: 0;
+      background-image: url('./assets/icons/print.svg');
     }
     &.paintformat {
-      left: -3 * @icon-size;
-      top: 0;
-    }
-    &.clearformat {
-      left: -4 * @icon-size;
-      top: 0;
-    }
-    &.font-bold {
-      left: -5 * @icon-size;
-      top: 0;
-    }
-    &.font-italic {
-      left: -6 * @icon-size;
-      top: 0;
+      background-image: url('./assets/icons/paintformat.svg');
     }
     &.underline {
-      left: -7 * @icon-size;
-      top: 0;
-    }
-    &.strike {
-      left: -8 * @icon-size;
-      top: 0;
+      background-image: url('./assets/icons/underline.svg');
     }
     &.color {
-      left: -9 * @icon-size;
-      top: 0;
+      background-image: url('./assets/icons/color.svg');
     }
     &.bgcolor {
-      left: -10 * @icon-size;
-      top: 0;
+      background-image: url('./assets/icons/bgcolor.svg');
     }
     &.merge {
-      left: -11 * @icon-size;
-      top: 0;
+      background-image: url('./assets/icons/merge.svg');
     }
     &.align-left {
-      left: -12 * @icon-size;
-      top: 0;
+      background-image: url('./assets/icons/align-left.svg');
     }
     &.align-center {
-      left: -13 * @icon-size;
-      top: 0;
+      background-image: url('./assets/icons/align-center.svg');
     }
     &.align-right {
-      left: 0;
-      top: -1 * @icon-size;
+      background-image: url('./assets/icons/align-right.svg');
     }
     &.align-top {
-      left: -1 * @icon-size;
-      top: -1 * @icon-size;
+      background-image: url('./assets/icons/align-top.svg');
     }
     &.align-middle {
-      left: -2 * @icon-size;
-      top: -1 * @icon-size;
+      background-image: url('./assets/icons/align-middle.svg');
     }
     &.align-bottom {
-      left: -3 * @icon-size;
-      top: -1 * @icon-size;
-    }
-    &.textwrap {
-      left: -4 * @icon-size;
-      top: -1 * @icon-size;
+      background-image: url('./assets/icons/align-bottom.svg');
     }
     &.autofilter {
-      left: -5 * @icon-size;
-      top: -1 * @icon-size;
+      background-image: url('./assets/icons/autofilter.svg');
     }
     &.formula {
-      left: -6 * @icon-size;
-      top: -1 * @icon-size;
+      background-image: url('./assets/icons/formula.svg');
     }
     &.arrow-down {
-      left: -7 * @icon-size;
-      top: -1 * @icon-size;
+      background-image: url('./assets/icons/arrow-down.svg');
     }
     &.arrow-right {
-      left: -8 * @icon-size;
-      top: -1 * @icon-size;
+      background-image: url('./assets/icons/arrow-right.svg');
     }
     &.link {
-      left: -9 * @icon-size;
-      top: -1 * @icon-size;
+      background-image: url('./assets/icons/link.svg');
     }
     &.chart {
-      left: -10 * @icon-size;
-      top: -1 * @icon-size;
+      background-image: url('./assets/icons/chart.svg');
     }
     &.freeze {
-      left: -11 * @icon-size;
-      top: -1 * @icon-size;
-    }
-    &.ellipsis {
-      left: -12 * @icon-size;
-      top: -1 * @icon-size;
+      background-image: url('./assets/icons/freeze.svg');
     }
     &.add {
-      left: -13 * @icon-size;
-      top: -1 * @icon-size;
+      background-image: url('./assets/icons/add.svg');
     }
     &.border-all {
-      left: 0;
-      top: -2 * @icon-size;
+      background-image: url('./assets/icons/border-all.svg');
     }
     &.border-inside {
-      left: -1 * @icon-size;
-      top: -2 * @icon-size;
+      background-image: url('./assets/icons/border-inside.svg');
     }
     &.border-horizontal {
-      left: -2 * @icon-size;
-      top: -2 * @icon-size;
+      background-image: url('./assets/icons/border-horizontal.svg');
     }
     &.border-vertical {
-      left: -3 * @icon-size;
-      top: -2 * @icon-size;
+      background-image: url('./assets/icons/border-vertical.svg');
     }
     &.border-outside {
-      left: -4 * @icon-size;
-      top: -2 * @icon-size;
+      background-image: url('./assets/icons/border-outside.svg');
     }
     &.border-left {
-      left: -5 * @icon-size;
-      top: -2 * @icon-size;
+      background-image: url('./assets/icons/border-left.svg');
     }
     &.border-top {
-      left: -6 * @icon-size;
-      top: -2 * @icon-size;
+      background-image: url('./assets/icons/border-top.svg');
     }
     &.border-right {
-      left: -7 * @icon-size;
-      top: -2 * @icon-size;
+      background-image: url('./assets/icons/border-right.svg');
     }
     &.border-bottom {
-      left: -8 * @icon-size;
-      top: -2 * @icon-size;
+      background-image: url('./assets/icons/border-bottom.svg');
     }
     &.border-none {
-      left: -9 * @icon-size;
-      top: -2 * @icon-size;
+      background-image: url('./assets/icons/border-none.svg');
     }
     &.line-color {
-      left: -10 * @icon-size;
-      top: -2 * @icon-size;
+      background-image: url('./assets/icons/line-color.svg');
     }
     &.line-type {
-      left: -11 * @icon-size;
-      top: -2 * @icon-size;
+      background-image: url('./assets/icons/line-type.svg');
     }
     &.close {
-      left: -13 * @icon-size;
-      top: -2 * @icon-size;
+      background-image: url('./assets/icons/close.svg');
     }
     &.chevron-down {
-      left: 0;
-      top: -3 * @icon-size;
+      background-image: url('./assets/icons/chevron-down.svg');
     }
     &.chevron-up {
-      left: -1 * @icon-size;
-      top: -3 * @icon-size;
+      background-image: url('./assets/icons/chevron-up.svg');
     }
     &.chevron-left {
-      left: -2 * @icon-size;
-      top: -3 * @icon-size;
+      background-image: url('./assets/icons/chevron-left.svg');
     }
     &.chevron-right {
-      left: -3 * @icon-size;
-      top: -3 * @icon-size;
+      background-image: url('./assets/icons/chevron-right.svg');
     }
   }
 }
