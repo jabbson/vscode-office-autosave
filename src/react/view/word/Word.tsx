@@ -69,21 +69,43 @@ export default function Word() {
         });
     };
 
-    const emitSave = useCallback((buffer: ArrayBuffer) => {
+    // True while a host-driven pack (requestSave/requestBytes) is running, so the
+    // editor's own save UI / Ctrl+S don't kick off a second, overlapping save.
+    const hostSaveInFlight = useRef(false);
+
+    const bufferToContent = useCallback((buffer: ArrayBuffer): number[] => {
         const bytes = new Uint8Array(buffer);
         const content: number[] = new Array(bytes.length);
         for (let i = 0; i < bytes.length; i++) {
             content[i] = bytes[i];
         }
-        handler.emit("save", content);
+        return content;
     }, []);
 
-    const handleSave = useCallback(async () => {
-        const buffer = await editorRef.current?.save();
-        if (!buffer) {
+    const emitSave = useCallback((buffer: ArrayBuffer) => {
+        handler.emit("save", bufferToContent(buffer));
+    }, [bufferToContent]);
+
+    const emitBytes = useCallback((buffer: ArrayBuffer) => {
+        handler.emit("bytes", bufferToContent(buffer));
+    }, [bufferToContent]);
+
+    // Read-only files keep the pre-existing out-of-band flow: pack and emit `save`,
+    // which the host turns into a Save-As. Writable files instead ask VS Code to
+    // run its save command so the working copy's dirty state stays truthful and
+    // manual + auto saves share a single write path.
+    const requestManualSave = useCallback(async () => {
+        if (hostSaveInFlight.current) {
             return;
         }
-        emitSave(buffer);
+        if (readOnlyRef.current) {
+            const buffer = await editorRef.current?.save();
+            if (buffer) {
+                emitSave(buffer);
+            }
+            return;
+        }
+        handler.emit("triggerVscodeSave");
     }, [emitSave]);
 
     const loadDocument = useCallback(async (payload: WordOpenPayload) => {
@@ -116,16 +138,46 @@ export default function Word() {
             .emit("init");
     }, [loadDocument]);
 
+    // Host-driven round-trips (writable docs only). `requestSave` packs the doc
+    // and emits `save`, which the host writes to disk (unified manual + auto path).
+    // `requestBytes` returns the packed buffer without touching the real file
+    // (Save-As / hot-exit backup).
+    useEffect(() => {
+        handler
+            .on("requestSave", async () => {
+                hostSaveInFlight.current = true;
+                try {
+                    const buffer = await editorRef.current?.save();
+                    if (buffer) {
+                        emitSave(buffer);
+                    }
+                } finally {
+                    hostSaveInFlight.current = false;
+                }
+            })
+            .on("requestBytes", async () => {
+                hostSaveInFlight.current = true;
+                try {
+                    const buffer = await editorRef.current?.save();
+                    if (buffer) {
+                        emitBytes(buffer);
+                    }
+                } finally {
+                    hostSaveInFlight.current = false;
+                }
+            });
+    }, [emitSave, emitBytes]);
+
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.code === "KeyS") {
                 e.preventDefault();
-                void handleSave();
+                void requestManualSave();
             }
         };
         window.addEventListener("keydown", onKeyDown);
         return () => window.removeEventListener("keydown", onKeyDown);
-    }, [handleSave]);
+    }, [requestManualSave]);
 
     return (
         <div className={`word-viewer${adaptiveColorMode ? " word-viewer--vscode-theme" : ""}`}>
@@ -170,7 +222,7 @@ export default function Word() {
                                 handler.emit("change");
                             }
                         }}
-                        onSave={emitSave}
+                        onSave={() => void requestManualSave()}
                     />
                     <footer className="word-sponsor-footer">
                         <SponsorBar placement="right" />

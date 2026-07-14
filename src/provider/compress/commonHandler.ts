@@ -4,6 +4,7 @@ import { Handler } from "@/common/handler";
 import { isUriReadOnly } from '@/common/fileReadOnly';
 import { Uri, workspace } from 'vscode';
 import { emitFileOfficeOpen, emitVirtualOfficeOpen, isVirtualUri } from '@/provider/handlers/officeContent';
+import { completeSave, notifyChange } from '@/common/saveBridge';
 
 const fileSaveTimes: Record<string, number> = {};
 const INTERNAL_SAVE_CHANGE_WINDOW_MS = 1500;
@@ -22,7 +23,13 @@ export function shouldSkipFileChange(uri: Uri): boolean {
     return !!(lastSaveTime && Date.now() - lastSaveTime < INTERNAL_SAVE_CHANGE_WINDOW_MS);
 }
 
-function setDirty(handler: Handler, uri: Uri, dirty: boolean) {
+function setDirty(handler: Handler, uri: Uri, dirty: boolean, editable?: boolean) {
+    // Editable docs are backed by a real VS Code working copy, which owns the
+    // native dirty indicator. Mutating the tab title here would fight it, so
+    // skip the cosmetic `●` marker for them.
+    if (editable) {
+        return;
+    }
     const panel = handler.panel;
     const fileName = basename(uri.fsPath);
     panel.title = dirty ? `● ${fileName}` : fileName;
@@ -31,7 +38,7 @@ function setDirty(handler: Handler, uri: Uri, dirty: boolean) {
     }
 }
 
-export function handleCommonEvent(uri: Uri, handler: Handler, options?: { skipOpen?: boolean }) {
+export function handleCommonEvent(uri: Uri, handler: Handler, options?: { skipOpen?: boolean, editable?: boolean }) {
     let readOnly = false;
     const send = async () => {
         if (shouldSkipFileChange(uri)) {
@@ -54,7 +61,10 @@ export function handleCommonEvent(uri: Uri, handler: Handler, options?: { skipOp
     }
     events
         .on("change", () => {
-            setDirty(handler, uri, true);
+            // For editable docs this marks the VS Code working copy dirty (via
+            // the provider's onChange callback); for others it draws the `●`.
+            notifyChange(uri.toString());
+            setDirty(handler, uri, true, options?.editable);
         })
         .on("save", async (content) => {
             const res = Array.isArray(content) ? new Uint8Array(content) : new TextEncoder().encode(content)
@@ -65,7 +75,10 @@ export function handleCommonEvent(uri: Uri, handler: Handler, options?: { skipOp
             fileSaveTimes[uri.toString()] = Date.now();
             await workspace.fs.writeFile(uri, res)
             fileSaveTimes[uri.toString()] = Date.now();
-            setDirty(handler, uri, false);
+            setDirty(handler, uri, false, options?.editable);
+            // Resolve a host-initiated save (Ctrl+S / auto-save) that is awaiting
+            // this write. No-op for webview-initiated saves.
+            completeSave(uri.toString());
             handler.emit("saveDone")
         })
         .on("saveAs", async (payload: { content: number[], ext?: string }) => {
