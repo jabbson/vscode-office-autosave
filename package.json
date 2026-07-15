@@ -44,7 +44,7 @@
 	"homepage": "https://github.com/cweijan/vscode-office/blob/master/README.md",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/cweijan/vscode-office.git"
+		"url": "https://github.com/jabbson/vscode-office-autosave.git"
 	},
 	"activationEvents": [
 		"onStartupFinished"
