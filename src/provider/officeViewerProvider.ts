@@ -42,11 +42,19 @@ export class OfficeViewerProvider implements vscode.CustomEditorProvider<vscode.
 	constructor(private context: vscode.ExtensionContext) { }
 
 	bindCustomEditors(viewOption: { webviewOptions: vscode.WebviewPanelOptions }) {
+		// Each viewType gets its OWN provider instance (its own
+		// onDidChangeCustomDocument emitter). VS Code subscribes to that emitter
+		// once per registered viewType and, on fire, looks the document up by
+		// (viewType, uri) — throwing "No custom document found" if absent. Sharing
+		// one instance across viewTypes would fan every edit event out to all of
+		// them, so the non-owning viewTypes would throw on every keystroke. Only
+		// .docx/.dotx (opened under cweijan.officeViewer) are editable, so only
+		// this instance ever fires; the rest never do.
 		return [
 			vscode.window.registerCustomEditorProvider('cweijan.officeViewer', this, viewOption),
-			vscode.window.registerCustomEditorProvider('cweijan.htmlViewer', this, viewOption),
-			vscode.window.registerCustomEditorProvider('cweijan.imageViewer', this, viewOption),
-			vscode.window.registerCustomEditorProvider('cweijan.parquetViewer', this, viewOption),
+			vscode.window.registerCustomEditorProvider('cweijan.htmlViewer', new OfficeViewerProvider(this.context), viewOption),
+			vscode.window.registerCustomEditorProvider('cweijan.imageViewer', new OfficeViewerProvider(this.context), viewOption),
+			vscode.window.registerCustomEditorProvider('cweijan.parquetViewer', new OfficeViewerProvider(this.context), viewOption),
 		];
 	}
 
