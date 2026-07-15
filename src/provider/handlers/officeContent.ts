@@ -156,7 +156,7 @@ export function bytesToPayloadBuffer(data: Uint8Array): number[] {
     return buffer;
 }
 
-export async function emitVirtualOfficeOpen(handler: Handler, uri: Uri): Promise<void> {
+export async function emitVirtualOfficeOpen(handler: Handler, uri: Uri, editable = false): Promise<void> {
     const now = Date.now();
     const ext = extname(uri.fsPath);
     const readOnly = await isUriReadOnly(uri);
@@ -169,6 +169,7 @@ export async function emitVirtualOfficeOpen(handler: Handler, uri: Uri): Promise
             scheme: uri.scheme,
             documentCacheId: buildDocumentCacheId(uri),
             readOnly,
+            editable,
             nonce: now,
         };
         payload.buffer = bytesToPayloadBuffer(data);
@@ -181,14 +182,14 @@ export async function emitVirtualOfficeOpen(handler: Handler, uri: Uri): Promise
             scheme: uri.scheme,
             documentCacheId: buildDocumentCacheId(uri),
             readOnly,
+            editable,
             error: error instanceof Error ? error.message : 'Failed to read file',
             nonce: now,
         });
     }
 }
 
-export async function emitFileOfficeOpen(handler: Handler, uri: Uri, webview: Webview): Promise<void> {
-    const now = Date.now();
+export async function emitFileOfficeOpen(handler: Handler, uri: Uri, webview: Webview, editable = false): Promise<void> {
     const readOnly = await isUriReadOnly(uri);
     handler.emit('open', {
         ext: extname(uri.fsPath),
@@ -196,5 +197,6 @@ export async function emitFileOfficeOpen(handler: Handler, uri: Uri, webview: We
         fileName: basename(uri.fsPath),
         documentCacheId: buildDocumentCacheId(uri),
         readOnly,
+        editable,
     });
 }

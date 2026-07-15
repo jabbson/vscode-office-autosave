@@ -9,7 +9,7 @@ import './Excel.less';
 import { MIN_VIEW_COLS, MIN_VIEW_ROWS } from "./excel_meta.ts";
 import { detectCsvEncoding } from "./csvEncoding.ts";
 import { loadSheets } from "./excel_reader.ts";
-import { export_xlsx, exportSaveAs, buildFormattingSnapshot, hasFormattingChanged } from "./excel_writer.ts";
+import { export_xlsx, exportSaveAs, packWorkbook, buildFormattingSnapshot, hasFormattingChanged } from "./excel_writer.ts";
 import Spreadsheet from './x-spreadsheet/index';
 import FindReplacePanel, { type FindReplacePanelHandle } from './FindReplacePanel';
 import { parseSpreadsheetLink } from './excel_hyperlink';
@@ -111,6 +111,12 @@ function ExcelViewer() {
     const extRef = useRef('')
     const documentCacheIdRef = useRef('')
     const readOnlyRef = useRef(false)
+    // True when this file is a VS Code-managed working copy (xlsx/xlsm, writable),
+    // so manual saves route through VS Code like the docx editor does.
+    const editableRef = useRef(false)
+    // True while a host-driven pack (requestSave/requestBytes) runs, to avoid the
+    // toolbar/keyboard save kicking off a second overlapping save.
+    const hostSaveInFlight = useRef(false)
     const spreadSheetRef = useRef<Spreadsheet | null>(null)
     const csvEncodingRef = useRef<'utf8' | 'gbk'>('utf8')
     const csvDelimiterRef = useRef(',')
@@ -253,15 +259,29 @@ function ExcelViewer() {
         }
     }, []);
 
+    // Read-only → Save-As. VS Code-managed (xlsx/xlsm writable) → route through
+    // VS Code so manual and auto saves share one write path and the dirty state
+    // stays truthful. Otherwise (xls/ods/csv) keep the original direct save.
+    const requestManualSave = useCallback(() => {
+        if (hostSaveInFlight.current) {
+            return;
+        }
+        if (readOnlyRef.current) {
+            void handleSaveAs();
+            return;
+        }
+        if (editableRef.current) {
+            handler.emit('triggerVscodeSave');
+            return;
+        }
+        void handleSave();
+    }, [handleSave, handleSaveAs]);
+
     useEffect(() => {
         const onKeyDown = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.code === 'KeyS') {
                 e.preventDefault();
-                if (readOnlyRef.current) {
-                    void handleSaveAs();
-                } else {
-                    void handleSave();
-                }
+                requestManualSave();
                 return;
             }
             if ((e.ctrlKey || e.metaKey) && e.code === 'KeyF') {
@@ -283,7 +303,15 @@ function ExcelViewer() {
         };
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [handleSave, handleSaveAs]);
+    }, [requestManualSave]);
+
+    // Report focus leaving the webview so the host can honor files.autoSave:
+    // onFocusChange for focus moves within the window (see Word.tsx for details).
+    useEffect(() => {
+        const onBlur = () => { handler.emit('webviewBlur'); };
+        window.addEventListener('blur', onBlur);
+        return () => window.removeEventListener('blur', onBlur);
+    }, []);
 
     useEffect(() => {
         const container = document.getElementById('container');
@@ -312,7 +340,13 @@ function ExcelViewer() {
             setLoading(false);
             spreadSheet.loadData(sheets);
             if (!fileReadOnly) {
-                spreadSheet.on('save', () => void handleSave());
+                spreadSheet.on('save', () => {
+                    if (editableRef.current) {
+                        handler.emit('triggerVscodeSave');
+                    } else {
+                        void handleSave();
+                    }
+                });
             }
             spreadSheet.on('save-as', () => { void handleSaveAs(); });
             spreadSheet.on('find', () => {
@@ -364,6 +398,7 @@ function ExcelViewer() {
             documentCacheIdRef.current = payload.documentCacheId ?? '';
             const fileReadOnly = payload.readOnly === true;
             readOnlyRef.current = fileReadOnly;
+            editableRef.current = payload.editable === true;
             setReadOnly(fileReadOnly);
             loadOfficeBuffer(payload).then(async (buffer) => {
                 try {
@@ -381,6 +416,42 @@ function ExcelViewer() {
                 setLoading(false);
             });
         }).on("saveDone", () => {
+        }).on("requestSave", async () => {
+            // Host-driven save (Ctrl+S / auto-save): pack the workbook in its own
+            // format and emit `save`, which the host writes to disk and uses to
+            // resolve the pending saveCustomDocument. Only fires for VS Code-
+            // managed formats (xlsx/xlsm), which are never read-only here.
+            const spreadSheet = spreadSheetRef.current;
+            if (!spreadSheet || readOnlyRef.current) {
+                return;
+            }
+            hostSaveInFlight.current = true;
+            try {
+                await export_xlsx(spreadSheet, extRef.current, csvEncodingRef.current, undefined, csvDelimiterRef.current);
+                spreadSheet.setSaveEnabled(false);
+            } catch (error) {
+                console.error(`Failed to save Excel file: ${(error as Error).message}`);
+            } finally {
+                hostSaveInFlight.current = false;
+            }
+        }).on("requestBytes", async () => {
+            // Host-driven pack without writing the real file (VS Code Save-As /
+            // hot-exit backup): return the packed bytes via `bytes`.
+            const spreadSheet = spreadSheetRef.current;
+            if (!spreadSheet) {
+                return;
+            }
+            hostSaveInFlight.current = true;
+            try {
+                const bytes = await packWorkbook(spreadSheet, extRef.current, csvEncodingRef.current, csvDelimiterRef.current);
+                if (bytes) {
+                    handler.emit('bytes', [...bytes]);
+                }
+            } catch (error) {
+                console.error(`Failed to pack Excel file: ${(error as Error).message}`);
+            } finally {
+                hostSaveInFlight.current = false;
+            }
         }).emit("init")
 
         let themeTimer: ReturnType<typeof setTimeout>;

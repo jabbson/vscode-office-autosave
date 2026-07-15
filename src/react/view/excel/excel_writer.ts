@@ -148,7 +148,7 @@ async function patchWorkbookSortStates(buffer: Uint8Array, sheets: SheetData[]) 
     return new Uint8Array(await zip.generateAsync({ type: 'uint8array' }));
 }
 
-async function exportWithExcelJs(sheets: SheetData[], options?: ExportOptions) {
+async function buildExcelJsBytes(sheets: SheetData[]): Promise<Uint8Array> {
     const workbook = new ExcelJS.Workbook();
     for (let i = 0; i < sheets.length; i += 1) {
         const sheetData = sheets[i];
@@ -156,8 +156,11 @@ async function exportWithExcelJs(sheets: SheetData[], options?: ExportOptions) {
         await writeSheetToExcelJs(worksheet, workbook, sheetData);
     }
     const buffer = new Uint8Array(await workbook.xlsx.writeBuffer());
-    const patched = await patchWorkbookSortStates(buffer, sheets);
-    await emitSave(patched, options);
+    return patchWorkbookSortStates(buffer, sheets);
+}
+
+async function exportWithExcelJs(sheets: SheetData[], options?: ExportOptions) {
+    await emitSave(await buildExcelJsBytes(sheets), options);
 }
 
 function applyColWidths(ws: XLSX.WorkSheet, xws: SheetData) {
@@ -193,14 +196,48 @@ function dataToSheetJs(xws: SheetData) {
     return ws;
 }
 
-function exportWithSheetJs(sheets: SheetData[], bookType: XLSX.BookType) {
+function buildSheetJsBytes(sheets: SheetData[], bookType: XLSX.BookType): Uint8Array {
     const workbook = XLSX.utils.book_new();
     for (let i = 0; i < sheets.length; i += 1) {
         const sheetData = sheets[i];
         XLSX.utils.book_append_sheet(workbook, dataToSheetJs(sheetData), sheetData.name || `Sheet${i + 1}`);
     }
-    const buffer = XLSX.write(workbook, { bookType, type: 'array' });
-    handler.emit('save', [...new Uint8Array(buffer)]);
+    return new Uint8Array(XLSX.write(workbook, { bookType, type: 'array' }));
+}
+
+function exportWithSheetJs(sheets: SheetData[], bookType: XLSX.BookType) {
+    handler.emit('save', [...buildSheetJsBytes(sheets, bookType)]);
+}
+
+function buildCsvBytes(sheets: SheetData[], ext: string, csvEncoding: CsvEncoding, csvDelimiter: string): Uint8Array {
+    const fs = ext === 'tsv' ? '\t' : csvDelimiter;
+    const csvContent = XLSX.utils.sheet_to_csv(dataToSheetJs(sheets[0]), { FS: fs });
+    return encodeCsvText(csvContent, csvEncoding);
+}
+
+/**
+ * Pack the current workbook to bytes in `extName`'s format WITHOUT emitting a
+ * save. Used by the host-driven requestBytes round-trip (VS Code Save-As and
+ * hot-exit backup). Returns null for formats we don't write.
+ */
+export async function packWorkbook(
+    spreadSheet: Spreadsheet,
+    extName: string,
+    csvEncoding: CsvEncoding = 'utf8',
+    csvDelimiter: string = ',',
+): Promise<Uint8Array | null> {
+    const ext = extName.replace('.', '').toLowerCase();
+    const sheets = spreadSheet.getData();
+    if (ext === 'xlsx' || ext === 'xlsm') {
+        return buildExcelJsBytes(sheets);
+    }
+    if (ext === 'xls' || ext === 'ods') {
+        return buildSheetJsBytes(sheets, ext as XLSX.BookType);
+    }
+    if (ext === 'csv' || ext === 'tsv') {
+        return buildCsvBytes(sheets, ext, csvEncoding, csvDelimiter);
+    }
+    return null;
 }
 
 export async function exportSaveAs(
@@ -252,9 +289,6 @@ export async function export_xlsx(
         return;
     }
     if (ext === 'csv' || ext === 'tsv') {
-        const fs = ext === 'tsv' ? '\t' : csvDelimiter;
-        const csvContent = XLSX.utils.sheet_to_csv(dataToSheetJs(sheets[0]), { FS: fs });
-        const bytes = encodeCsvText(csvContent, csvEncoding);
-        handler.emit('save', [...bytes]);
+        handler.emit('save', [...buildCsvBytes(sheets, ext, csvEncoding, csvDelimiter)]);
     }
 }

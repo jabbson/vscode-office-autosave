@@ -46,10 +46,10 @@ export function handleCommonEvent(uri: Uri, handler: Handler, options?: { skipOp
         }
         readOnly = await isUriReadOnly(uri);
         if (isVirtualUri(uri)) {
-            void emitVirtualOfficeOpen(handler, uri);
+            void emitVirtualOfficeOpen(handler, uri, options?.editable);
             return;
         }
-        await emitFileOfficeOpen(handler, uri, handler.panel.webview);
+        await emitFileOfficeOpen(handler, uri, handler.panel.webview, options?.editable);
     }
     const events = handler
         .on("editInVSCode", (full: boolean) => {

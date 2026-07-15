@@ -22,8 +22,14 @@ import {
 	unregisterDoc,
 } from '@/common/saveBridge';
 
-/** Suffixes whose route renders an editable editor with its own save round-trip. */
-const EDITABLE_SUFFIXES = new Set(['.docx', '.dotx']);
+/**
+ * Suffixes whose route renders an editable editor with its own save round-trip.
+ * Limited to formatting-preserving formats: docx/dotx (Word) and xlsx/xlsm
+ * (Excel via ExcelJS). xls/ods/csv are intentionally excluded — their writers
+ * are lossy (SheetJS drops styles/images), so silent auto-save would degrade
+ * files without the warning the manual Save flow shows.
+ */
+const EDITABLE_SUFFIXES = new Set(['.docx', '.dotx', '.xlsx', '.xlsm']);
 
 /**
  * support view office files
@@ -238,7 +244,7 @@ export class OfficeViewerProvider implements vscode.CustomEditorProvider<vscode.
 		// Re-send the on-disk bytes; the webview remounts the editor with them,
 		// discarding in-memory edits.
 		markClean(document.uri.toString());
-		await emitFileOfficeOpen(handler, document.uri, handler.panel.webview);
+		await emitFileOfficeOpen(handler, document.uri, handler.panel.webview, true);
 	}
 
 	public async backupCustomDocument(document: vscode.CustomDocument, context: vscode.CustomDocumentBackupContext, _cancellation: vscode.CancellationToken): Promise<vscode.CustomDocumentBackup> {
