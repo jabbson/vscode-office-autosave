@@ -179,6 +179,19 @@ export default function Word() {
         return () => window.removeEventListener("keydown", onKeyDown);
     }, [requestManualSave]);
 
+    // The webview iframe loses focus whenever focus leaves it — to another editor
+    // group, the Explorer, a panel, or another OS window. VS Code doesn't turn
+    // that into an editor-pane blur for webviews, so `files.autoSave:
+    // onFocusChange` never fires for focus moves within the window. Report the
+    // blur so the host can honor onFocusChange itself.
+    useEffect(() => {
+        const onBlur = () => {
+            handler.emit("webviewBlur");
+        };
+        window.addEventListener("blur", onBlur);
+        return () => window.removeEventListener("blur", onBlur);
+    }, []);
+
     return (
         <div className={`word-viewer${adaptiveColorMode ? " word-viewer--vscode-theme" : ""}`}>
             <button

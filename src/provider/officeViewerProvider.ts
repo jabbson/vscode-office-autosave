@@ -13,7 +13,9 @@ import { isUriReadOnly } from '@/common/fileReadOnly';
 import {
 	beginSave,
 	getHandler,
+	isDirtyDoc,
 	isEditable,
+	markClean,
 	provideBytes,
 	registerDoc,
 	requestBytes,
@@ -159,8 +161,43 @@ export class OfficeViewerProvider implements vscode.CustomEditorProvider<vscode.
 				// Code so it and auto-save share one write path and dirty state stays
 				// truthful. No-op when the doc isn't dirty.
 				void vscode.commands.executeCommand('workbench.action.files.save');
+			})
+			.on('webviewBlur', () => {
+				void this.autoSaveOnFocusChange(document);
 			});
 		webviewPanel.onDidDispose(() => unregisterDoc(uriStr));
+	}
+
+	/**
+	 * VS Code's `onFocusChange` auto-save fires from the active editor pane's
+	 * blur event, which webview editors don't emit when focus moves elsewhere
+	 * inside the same window (Explorer, panels, other groups) — only a full
+	 * window blur is observed. Bridge that gap: when the webview loses focus and
+	 * the user opted into `onFocusChange`, save this specific document through VS
+	 * Code so it routes via saveCustomDocument (dirty state stays truthful)
+	 * rather than an out-of-band write. Gated on the shadow dirty flag so a plain
+	 * click-away on an unchanged doc doesn't pack it needlessly.
+	 */
+	private async autoSaveOnFocusChange(document: vscode.CustomDocument): Promise<void> {
+		const uriStr = document.uri.toString();
+		if (!isDirtyDoc(uriStr)) {
+			return;
+		}
+		const mode = vscode.workspace.getConfiguration('files', document.uri).get<string>('autoSave');
+		if (mode !== 'onFocusChange') {
+			return;
+		}
+		try {
+			if (typeof vscode.workspace.save === 'function') {
+				await vscode.workspace.save(document.uri);
+			} else {
+				// Older hosts (< 1.79) lack workspace.save; fall back to saving the
+				// active editor, which is this doc when focus moved to a non-editor.
+				await vscode.commands.executeCommand('workbench.action.files.save');
+			}
+		} catch {
+			// best-effort focus-change save
+		}
 	}
 
 	public async saveCustomDocument(document: vscode.CustomDocument, _cancellation: vscode.CancellationToken): Promise<void> {
@@ -192,6 +229,7 @@ export class OfficeViewerProvider implements vscode.CustomEditorProvider<vscode.
 		}
 		// Re-send the on-disk bytes; the webview remounts the editor with them,
 		// discarding in-memory edits.
+		markClean(document.uri.toString());
 		await emitFileOfficeOpen(handler, document.uri, handler.panel.webview);
 	}
 

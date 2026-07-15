@@ -20,6 +20,9 @@ import type { Handler } from '@/common/handler';
 interface DocEntry {
     handler: Handler;
     onChange: () => void;
+    /** Shadow of the working copy's dirty state, used to skip needless
+     *  focus-change save round-trips (packing a large docx is expensive). */
+    dirty?: boolean;
     pendingSave?: () => void;
     pendingBytes?: (bytes: Uint8Array | undefined) => void;
 }
@@ -54,7 +57,25 @@ export function getHandler(uriStr: string): Handler | undefined {
 
 /** Called from `commonHandler`'s single `change` listener. */
 export function notifyChange(uriStr: string): void {
-    docs.get(uriStr)?.onChange();
+    const entry = docs.get(uriStr);
+    if (!entry) {
+        return;
+    }
+    entry.dirty = true;
+    entry.onChange();
+}
+
+/** Whether the doc has unsaved edits since it was last saved/loaded. */
+export function isDirtyDoc(uriStr: string): boolean {
+    return docs.get(uriStr)?.dirty === true;
+}
+
+/** Reset the shadow dirty flag (e.g. after a revert re-loads from disk). */
+export function markClean(uriStr: string): void {
+    const entry = docs.get(uriStr);
+    if (entry) {
+        entry.dirty = false;
+    }
 }
 
 /**
@@ -83,8 +104,12 @@ export function beginSave(uriStr: string): Promise<void> {
 
 export function completeSave(uriStr: string): void {
     const entry = docs.get(uriStr);
-    const cb = entry?.pendingSave;
-    if (entry && cb) {
+    if (!entry) {
+        return;
+    }
+    entry.dirty = false;
+    const cb = entry.pendingSave;
+    if (cb) {
         entry.pendingSave = undefined;
         cb();
     }
